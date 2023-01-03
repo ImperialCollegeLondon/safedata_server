@@ -1,0 +1,153 @@
+{{extend 'layout.html'}}
+
+<h2>The safedata server API</h2>
+
+<p>The root URL for the API is shown below - the bare URL redirects to this API description.</p>
+
+<pre>{{=URL('api', host=True, scheme=True)}}</pre>
+
+<h3>Shared query parameters</h3>
+
+<p>In addition to their own query parameters, the endpoints described below also
+accept the following global options:</p>
+
+<h4><code>most_recent</code></h4>
+
+<p>Adding this flag to the query string will restrict the API to returning only
+the most recent version of a dataset.</p>
+
+<pre>{{=URL('api', args=['search','taxa'], vars={'name': 'Formicidae', 'most_recent': ''}, host=True, scheme=True)}}</pre>
+
+
+<h4><code>ids</code></h4>
+
+<p>This option allows the user to restrict the search to particular dataset
+records, using <code>zenodo_record_id</code>  values, allowing API calls to
+refine previous searches.</p>
+
+<pre>{{=URL('api', args=['search','taxa'], vars={'name': 'Formicidae', 'ids': [1198302,1995439]}, host=True, scheme=True)}}</pre>
+
+<h3>Record endpoint</h3>
+
+<p>This endpoint returns the metadata for the Zenodo record ID provided. This is
+exactly the same as the information set out in the Zenodo dataset description as
+JSON data. This endpoint ignores the shared <code>ids</code> or
+<code>most_recent</code> query parameters. The JSON data is complex!</p>
+	
+<pre>{{=URL('api', args=['record','1198302'], host=True, scheme=True)}}</pre>
+
+<h3>Files endpoint</h3>
+
+<p>The files endpoint returns the files associated with datasets. There will often
+only be a single Excel file, but external data files will also be listed. This
+endpoint does accept the shared <code>ids</code> or <code>most_recent</code>
+query parameters. The download link is only functional when a dataset is open
+access or if the listed embargo date has passed.</p>
+
+<pre>{{=URL('api', args=['files'], vars={'most_recent':''}, host=True, scheme=True)}}</pre>
+
+<pre>
+{
+	"count": 57,
+	"entries": [
+		{
+			"checksum": "07df68c42b756330ed584711d74129c0",
+			"filename": "template_Heon.xlsx",
+			"most_recent": true,
+			"zenodo_record_id": 1304117,
+			"download_link": "https://zenodo.org/api/files/9df99ec9-8bc5-42b8-a8da-a695da875f32/template_Heon.xlsx",
+			"dataset_access": "open",
+			"zenodo_concept_id": 1198568,
+			"dataset_embargo": null,
+			"dataset_title": "Do logging roads impede small mammal movement in Borneo's tropical rainforests?",
+			"filesize": 364916
+		},
+		...
+	]
+}
+</pre>
+
+
+<h3>Locations_bbox endpoint</h3>
+
+<p>The locations_bbox endpoint provides JSON data used to validate location data
+provided in SAFE data format files. It returns a dictionary of containing both
+valid locations with their bounding boxs and a mapping of known aliases to their
+valid location names:</p>
+
+<pre>{{=URL('api', args=['locations_bbox'], host=True, scheme=True)}}</pre>
+
+<pre>
+{
+	"locations": {
+		"RT_60M_C_160": [117.55032, 117.55032, 4.729569, 4.729569],
+		"F1-1-18": [117.5409668, 117.5409668, 4.6940337, 4.6940337],
+		...
+	},
+	"aliases": {
+		"507": "OP2_507",
+		"818": "F_818",
+		...
+	}
+}
+</pre>
+
+<h3>Taxa endpoint</h3>
+
+<p>The taxa endpoint provides JSON data on the taxon names currently used in SAFE
+datasets. The response is a list of taxon details, including a count of the
+number of datasets recording each taxon:</p>
+
+<pre>{{=URL('api', args=['taxa'], host=True, scheme=True)}}</pre>
+
+<pre>
+[
+	{
+		"n_datasets": 1,
+		"gbif_id": -1,
+		"taxon_rank": "morphospecies",
+		"taxon_name": "Leptogenys sp. 68",
+		"gbif_status": "user",
+		"gbif_parent_id": 1321215
+	},
+	{
+		"n_datasets": 1,
+		"gbif_id": -1,
+		"taxon_rank": "morphospecies",
+		"taxon_name": "Plat1",
+		"gbif_status": "user",
+		"gbif_parent_id": 1040352
+	},
+	...
+]
+</pre>
+
+<h3>Dataset search endpoints</h3>
+
+<p>We provide a number of search endpoints to locate datasets, which are
+described below along with their query options. All return JSON data in the same
+format, shown below with an example call.</p>
+	
+<pre>{{=URL('api', args=['search','taxa'], vars={'name': 'Formicidae'}, host=True, scheme=True)}}</pre>
+
+<pre>
+{
+	"count": 8,
+	"entries": [
+		{
+			"zenodo_concept_id": 1198301,
+			"zenodo_record_id": 1198302,
+			"dataset_title": "The role of competition in structuring ant community composition across a tropical forest disturbance gradient"
+		},
+		...
+	]
+}
+</pre>
+
+<p>The datasets all have a unique zenodo record id
+(<code>zenodo_record_id</code>), but different versions of the same dataset are
+all grouped together under the a concept id (<code>zenodo_concept_id</code>).
+</p>
+
+
+{{=docs}}

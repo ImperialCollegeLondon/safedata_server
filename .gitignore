@@ -1,0 +1,28 @@
+# Do not track the GIS files
+static/files/gis/*
+
+# ignore error reports
+errors/
+
+# ignore session details
+sessions/
+
+# ignore database definitions
+databases/
+
+# ignore the uploads folder
+uploads/
+
+# ignore the languages folder
+languages/
+
+# mac folder junk
+.DS_Store
+
+# byte compliled python
+*.pyc
+
+# Ignore private generally except config template
+private/*
+!private/appconfig_template.ini
+

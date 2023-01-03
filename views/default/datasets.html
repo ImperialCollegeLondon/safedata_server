@@ -1,0 +1,32 @@
+{{extend 'layout.html'}}
+
+<h1> Published Datasets </h1>
+
+<p>The table below shows published datasets</p>
+
+<p>The dataset access badges show the availability of each dataset:
+	<ul>
+		<li>
+			<span class='badge' style="background-color:green;font-size: 1em;">O</span>
+			&nbsp;
+			<strong>Open Access:</strong> 
+			Most datasets are open access and can be freely downloaded from Zenodo.
+		</li>
+		<li>
+			<span class='badge' style="background-color:orange;font-size: 1em;">E</span>
+			&nbsp;
+			<strong>Embargoed:</strong> 
+			Some datasets are embargoed until the data authors have published research. Mouse over the badge to see the embargo date.
+		</li>
+		<li>
+			<span class='badge' style="background-color:red;font-size: 1em;">R</span>
+			&nbsp;
+			<strong>Restricted:</strong> 
+			Rarely, a data set may be restricted because they contain sensitive data - you may request access for restricted datasets through Zenodo.
+		</li>
+	</ul>
+</p>
+
+<br>
+{{=form}}
+<br>

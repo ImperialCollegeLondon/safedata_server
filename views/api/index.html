@@ -1,0 +1,87 @@
+{{extend 'layout.html'}}
+
+<h1>The safedata server API</h1>
+
+<p>This API provides endpoints to:
+
+<ul>
+	<li>Update the dataset metadata being served from the API,</li>
+	<li>Check for updates to the metadata index and gazetteer and retrieve updated
+		versions , and </li>
+	<li>Perform queries on the dataset metadata to identify datasets of
+		interest</li>
+</ul>
+
+The root URL for the API is shown below. This URL automatically redirects to this index
+page giving a description of the API endpoints.</p>
+
+<pre>{{=URL(c="api", f=" ", host=True, scheme=True)}}</pre>
+
+
+
+<h2>Shared endpoint variables</h2>
+
+<p>In addition to their own query parameters, some of the endpoints described below also
+	accept the following optional variables:</p>
+
+<table class="table table-striped">
+	<tr>
+		<td><code>most_recent</code></td>
+		<td>
+			<pre>Adding this variable to the query string will restrict the API to returning
+results only for most recent version of a published dataset.
+
+Example usage:
+	/api/search/taxa?name=Formicidae&most_recent</pre>
+		</td>
+	</tr>
+
+	<tr>
+		<td><code>ids</code></td>
+		<td>
+			<pre>This option allows the user to restrict the search to particular dataset
+records, using <code>zenodo_record_id</code> values, allowing API calls to
+refine previous searches.
+
+Example usage:
+	/api/search/taxa?name=Formicidae&ids=1198302&ids=1995439</pre>
+		</td>
+	</tr>
+</table>
+
+
+<h2>Metadata endpoints</h2>
+
+The endpoints described below are used to update the dataset metadata and to check for
+new versions of the metadata index and gazetteer data.
+
+{{=docs}}
+
+<h3>Dataset search endpoints</h3>
+
+<p>We provide a number of search endpoints to locate datasets with particular features.
+	These are described below along with their query options. All return JSON data in the
+	same format: a count of the number of matching records and then an array giving the
+	concept and record ids and title for matching datasets.</p>
+
+<pre>
+{
+	"count": 8,
+	"entries": [
+		{
+			"zenodo_concept_id": 1198301,
+			"zenodo_record_id": 1198302,
+			"dataset_title": "The role of competition in structuring ant community composition across a tropical forest disturbance gradient"
+		},
+		...
+	]
+}
+</pre>
+
+<p>The datasets all have a unique zenodo record id
+	(<code>zenodo_record_id</code>), but different versions of the same dataset are
+	all grouped together under the a concept id (<code>zenodo_concept_id</code>).
+</p>
+
+
+{{=srch_docs}}
