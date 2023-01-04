@@ -1,0 +1,106 @@
+{{extend 'layout.html'}}
+
+<style>
+    .my-div-icon {
+        background: red;
+        border: 5px solid rgba(255, 255, 255, 0.5);
+        color: blue;
+        font-weight: bold;
+        text-align: center;
+        border-radius: 50%;
+        line-height: 30px;
+    }
+</style>
+
+
+<div class='container'>
+    <h2>Gazetteer</h2>
+
+    <p>The map below shows the primary fieldwork locations in the gazetteer data. The
+        searchable table below the map will update the set of locations shown on the map.
+        The export buttons allow you to download a set of locations (or all the locations)
+        in two formats:</p>
+
+    <dl>
+        <dt><strong>GeoJSON</strong></dt>
+        <dd>This is a GIS format that can be used with most GIS programs. The single
+            download file can contain a mixture of polygon, line and point data. The file
+            contains the attributes of each location as well as the full coordinates for
+            each location.</dd>
+        <dt><strong>GPX</strong></dt>
+        <dd>This format is for use in GPS devices and the download file contains a
+            waypoint for each location. For polygon features, we provide a centroid as a GPX
+            waypoint, since these locations are simple enough that the centroid lies within
+            the sampling location. We deliberately <strong>do not provide any centroid
+            </strong>
+            for linear sampling locations, such as riparian transects. There is no
+            guarantee that the line centroid will fall on the line - use the GPX
+            waypoints for the individual stations on a transect instead.</dd>
+    </dl>
+
+    <div id="mapid" style='height: 600px; border: 3px solid white;'></div>
+
+    {{=form}}
+    </br>
+</div>
+{{block page_js}}
+
+<script type="text/javascript">
+
+    // Two alternative basemaps 
+    var topo = L.tileLayer('http://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+        maxZoom: 17,
+        attribution: 'Map data: &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)'
+    });
+
+    var imagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+    });
+
+    var baseMaps = {
+        "Imagery": imagery,
+        "Topography": topo
+    };
+
+    // launch the map instance
+    var mymap = L.map('mapid', {
+        center: [4.75, 117.25],
+        zoom: 9,
+        layers: [imagery],
+        dragging: true,
+        doubleClickZoom: true
+    });
+
+    // Add a scale and the layer control
+    L.control.scale({ imperial: false, position: 'topright' }).addTo(mymap);
+    L.control.layers(baseMaps).addTo(mymap);
+
+    // Add the markers from the db
+    var markers = JSON.parse('{{=XML(sitedata)}}')
+
+    // Set a style for points, represented by 
+    // simple circle markers
+    var geojsonMarkerOptions = {
+        radius: 4,
+        fillColor: "#2367F9",
+        color: "#000",
+        weight: 1,
+        opacity: 1,
+        fillOpacity: 0.8
+    };
+
+    // loop over the markers adding them into the map
+    $.each(markers, function (key) {
+        var m = markers[key];
+        var marker = L.geoJSON(m, {
+            pointToLayer: function (feature, latlng) {
+                return L.circleMarker(latlng, geojsonMarkerOptions);
+            }
+        }).addTo(mymap);
+        // Add the tooltip, styled on the server side
+        marker.bindTooltip(m.tooltip);
+    });
+
+</script>
+
+{{end page_js}}
