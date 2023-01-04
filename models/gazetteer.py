@@ -4,12 +4,14 @@ GAZETTEER
   aliases for locations.
 - For a given project, the gazetteer table needs to be aligned to the properties used
   in the gazetteer GeoJSON. The location field is mandatory and the two wkt_ fields are
-  used internally to store lat long and local PCS data.
+  used internally to store lat long and local PCS data. The display order field is used
+  to control the plotting order in the gazetteer leaflet map.
 """
 
 db.define_table(
     "gazetteer",
     Field("location", "string", unique=True),
+    Field("display_order", "integer", default=1),
     Field("wkt_wgs84", "geometry()"),
     Field("wkt_local", f"geometry(public, {configuration.get('geo.local_epsg')}, 2)"),
 )
