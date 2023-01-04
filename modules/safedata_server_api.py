@@ -2,7 +2,7 @@ import os
 import datetime
 import hashlib
 import json
-from shapely import geometry
+from shapely.geometry import box, shape
 
 # The web2py HTML helpers are provided by gluon. This also provides the 'current'
 # object, which provides the web2py 'request' API (note the single letter difference
@@ -45,7 +45,7 @@ def server_post_metadata(payload: dict) -> int:
         dataset_metadata=dataset,
         temporal_extent_start=dataset["temporal_extent"][0],
         temporal_extent_end=dataset["temporal_extent"][1],
-        geographic_extent=geometry.box(
+        geographic_extent=box(
             dataset["longitudinal_extent"][0],
             dataset["latitudinal_extent"][0],
             dataset["longitudinal_extent"][1],
@@ -139,6 +139,14 @@ def server_update_gazetteer(payload: dict) -> None:
     the gazetteer GeoJSON data and the location aliases data. It then uses this data to
     update the local static copies of those files and the database.
 
+    This controller reloads the contents of the gazetteer table and the alias table from
+    the files provided and then updates the local geometry field. Note that this relies
+    on web2py 2.18.5+, which includes a version of PyDAL that supports st_transform.
+
+    The files uploaded here are versioned to serve updated details via the API and so
+    this function also clears the file hashes from the RAM cache, so that the next
+    request for the index hashes will repopulate them.
+
     Args:
         payload: The parsed JSON payload
 
@@ -149,10 +157,44 @@ def server_update_gazetteer(payload: dict) -> None:
     gazetteer = payload["gazetteer"]
     location_aliases = payload["location_aliases"]
 
-    # TODO - database function check out within db transaction that can be rolled back
-    #        if it fails and _then_ if all is well, save the data to the local static
-    #        locations
+    # Update gazetteer table
+    db = current.db
 
+    try:
+        # drop the current contents
+        db.gazetteer.truncate()
+
+        # Loop over the features, inserting the properties and using shapely to convert
+        # the geojson geometry to WKT, prepending the PostGIS extended WKT statement of
+        # the EPSG code for the geometry
+        gazetteer_rows = []
+        for ft in gazetteer["features"]:
+            fields = ft["properties"]
+            fields["wkt_wgs84"] = "SRID=4326;" + shape(ft["geometry"]).wkt
+            gazetteer_rows.append(fields)
+
+        db.gazetteer.bulk_insert(gazetteer_rows)
+
+        # Recalculate the UTM50N geometries - using the extended pydal GIS
+        db(db.gazetteer).update(
+            wkt_local=db.gazetteer.wkt_wgs84.st_transform(
+                current.configuration.get("geo.local_epsg")
+            )
+        )
+    except:
+        db.rollback()
+        raise HTTP(400, "Could not load gazetteer data")
+
+    # Update GAZETTEER ALIASES
+    try:
+        #  - drop the current contents
+        db.gazetteer_alias.truncate()
+        db.gazetteer_alias.bulk_insert(location_aliases)
+    except:
+        db.rollback()
+        raise HTTP(400, "Could not load location alias data")
+
+    # Write the files to static
     gaz_dir = os.path.join(current.request.folder, "static", "files", "gis")
     os.makedirs(gaz_dir, exist_ok=True)
 
@@ -163,6 +205,9 @@ def server_update_gazetteer(payload: dict) -> None:
     alias_file = os.path.join(gaz_dir, "location_aliases.csv")
     with open(alias_file, "w") as alias_out:
         alias_out.write(location_aliases)
+
+    # Update the ram cache with the md5 stamps
+    cache.ram("version_stamps", None)
 
     return
 
