@@ -1,29 +1,25 @@
 """A controller to expose the gazetteer as a map."""
 
-import dateutil.parser
-import requests
-from collections import Counter
 from gluon.contrib import simplejson
 from gluon.serializers import json, loads_json
 
 import os
 from gpxpy import gpx
-from safe_web_global_functions import get_frm
-from shapely.geometry import shape
+
 
 SFIELDS = [
     db.gazetteer.location,
-    db.gazetteer.type,
-    db.gazetteer.plot_size,
-    db.gazetteer.fractal_order,
-    db.gazetteer.transect_order,
+    # db.gazetteer.type,
+    # db.gazetteer.plot_size,
+    # db.gazetteer.fractal_order,
+    # db.gazetteer.transect_order,
 ]
 """This is a list of gazetteer table fields used for searching and download, and needs
 to be updated to the gazetteer table definition used by a particular project.
 """
 
 
-def gazetteer():
+def index():
 
     """
     Controller to provide a map view of the gazetteer data and a searchable
@@ -46,26 +42,8 @@ def gazetteer():
         orderby=db.gazetteer.display_order,
     )
 
-    # Need to put together the tooltip for the gazetteer
-    # using a subset of the available columns
-    loc = ["<B>" + rw.gazetteer["location"] + "</B></BR>" for rw in rws]
-    info = [
-        [
-            key + ": " + str(rw.gazetteer[key])
-            for key in [
-                "type",
-                "plot_size",
-                "parent",
-                "fractal_order",
-                "transect_order",
-            ]
-            if rw.gazetteer[key] is not None
-        ]
-        for rw in rws
-    ]
-
-    # combine, removing trailing break
-    tooltips = [l + "</BR>".join(i) for l, i in zip(loc, info)]
+    # Create tooltip text for the gazetteer
+    tooltips = ["<B>" + rw.gazetteer["location"] + "</B></BR>" for rw in rws]
 
     rws = [
         {"type": "Feature", "tooltip": tl, "geometry": loads_json(r.geojson)}
@@ -186,10 +164,10 @@ class ExporterGeoJSON(object):
             # pop out the geometry components and id
             id_number = [ft.pop("id") for ft in ft_as_dicts]
 
-            # Get the locations - for geojson, we need an id, a geometry and a dictionary
-            # of properties. This query uses the with_alias() to strucure the results with
-            # id and geojson outside of the 'gazetteer' table dictionary, making it really
-            # simple to restucture them into a geojson Feature entry
+            # Get the locations - for geojson, we need an id, a geometry and a
+            # dictionary of properties. This query uses the with_alias() to strucure the
+            # results with id and geojson outside of the 'gazetteer' table dictionary,
+            # making it really simple to restucture them into a geojson Feature entry
             locations = (
                 db(db.gazetteer.id.belongs(id_number))
                 .select(
