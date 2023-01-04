@@ -1,7 +1,10 @@
+from csv import DictReader
+from io import StringIO
 import os
 import datetime
 import hashlib
 import json
+
 from shapely.geometry import box, shape
 
 # The web2py HTML helpers are provided by gluon. This also provides the 'current'
@@ -149,9 +152,6 @@ def server_update_gazetteer(payload: dict) -> None:
 
     Args:
         payload: The parsed JSON payload
-
-    Returns:
-        The integer ID of the resulting row in published_datasets.
     """
 
     gazetteer = payload["gazetteer"]
@@ -167,13 +167,10 @@ def server_update_gazetteer(payload: dict) -> None:
         # Loop over the features, inserting the properties and using shapely to convert
         # the geojson geometry to WKT, prepending the PostGIS extended WKT statement of
         # the EPSG code for the geometry
-        gazetteer_rows = []
         for ft in gazetteer["features"]:
-            fields = ft["properties"]
-            fields["wkt_wgs84"] = "SRID=4326;" + shape(ft["geometry"]).wkt
-            gazetteer_rows.append(fields)
-
-        db.gazetteer.bulk_insert(gazetteer_rows)
+            data = ft["properties"]
+            data["wkt_wgs84"] = "SRID=4326;" + shape(ft["geometry"]).wkt
+            db.gazetteer.insert(**data)
 
         # Recalculate the UTM50N geometries - using the extended pydal GIS
         db(db.gazetteer).update(
@@ -183,16 +180,22 @@ def server_update_gazetteer(payload: dict) -> None:
         )
     except:
         db.rollback()
-        raise HTTP(400, "Could not load gazetteer data")
+        raise ValueError("Could not load gazetteer data")
 
     # Update GAZETTEER ALIASES
     try:
         #  - drop the current contents
         db.gazetteer_alias.truncate()
-        db.gazetteer_alias.bulk_insert(location_aliases)
+        # Parse the data into row dictionaries and remove null values
+        data = list(DictReader(StringIO(location_aliases)))
+        for row in data:
+            if row["zenodo_record_id"] == "null":
+                row["zenodo_record_id"] = None
+            # Insert the data rows
+            db.gazetteer_alias.insert(**row)
     except:
         db.rollback()
-        raise HTTP(400, "Could not load location alias data")
+        raise ValueError("Could not load location alias data")
 
     # Write the files to static
     gaz_dir = os.path.join(current.request.folder, "static", "files", "gis")
@@ -207,7 +210,10 @@ def server_update_gazetteer(payload: dict) -> None:
         alias_out.write(location_aliases)
 
     # Update the ram cache with the md5 stamps
-    cache.ram("version_stamps", None)
+    current.cache.ram("version_stamps", None)
+
+    # Now if all is well, allow those updates to be committed.
+    db.commit()
 
     return
 
