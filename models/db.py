@@ -32,7 +32,7 @@ db = DAL(
     configuration.get("db.uri"),
     pool_size=configuration.get("db.pool_size"),
     migrate_enabled=configuration.get("db.migrate"),
-    check_reserved=["all"],
+    check_reserved=["postgres"],
 )
 
 # Store db and configuration in the current object so they can be access by modules
@@ -125,62 +125,6 @@ if configuration.get("scheduler.enabled"):
     scheduler = Scheduler(db, heartbeat=configuration.get("scheduler.heartbeat"))
 
 # -------------------------------------------------------------------------
-# Tables
-# -------------------------------------------------------------------------
-
-# -------------------------------------------------------------------------
-# Tables - resources
-# Gazetteer definition can be extended
-# -------------------------------------------------------------------------
-
-db.define_table(
-    "gazetteer",
-    Field("location_name", "string", unique=True),
-    Field("location_type", "string"),
-    Field("centroid_x", "float"),
-    Field("centroid_y", "float"),
-    Field("bbox_xmin", "float"),
-    Field("bbox_xmax", "float"),
-    Field("bbox_ymin", "float"),
-    Field("bbox_ymax", "float"),
-    Field("wkt_wgs84", "geometry()"),
-    # Create local projected coordinate geometry, setting schema, EPSG, ndim
-    Field("wkt_local", f"geometry(public, {configuration.get('geo.local_epsg')}, 2)"),
-)
-
-
-# Aliases location names - cannot use a value already in the gazetteer locations
-# This table identifies location names that equate to an official name in the
-# gazetteer. The field dataset_id allows a name in a specific dataset to be adopted
-# retrospectively: all NEW locations in a dataset should be checked to see if they
-# appear in this table and, if so, they can point to a gazetteer location. The
-# zenodo_record_id allows these names only to be unique within a dataset. If
-# zenodo_record_id is None, then the values are general aliases
-
-db.define_table(
-    "gazetteer_alias",
-    Field(
-        "zenodo_record_id",
-        "integer",
-        requires=IS_NULL_OR(IS_IN_DB(db, "published_datasets.zenodo_record_id")),
-    ),
-    Field("location_name", "string", requires=IS_IN_DB(db, "gazetteer.locations")),
-    Field("location_alias", "string", requires=IS_NOT_IN_DB(db, "gazetteer.locations")),
-)
-
-# The combination of dataset_id and location_alias needs to be unique.
-# Normally this would be a multi column primary key but is achieved here
-# using the callback defined below the table
-
-db.gazetteer_alias._before_insert.append(
-    lambda r: db(
-        (db.gazetteer_alias.zenodo_record_id == r["zenodo_record_id"])
-        & (db.gazetteer_alias.alias == r["alias"])
-    ).select()
-)
-
-
-# -------------------------------------------------------------------------
 # Datasets
 # -------------------------------------------------------------------------
 
@@ -207,7 +151,10 @@ db.define_table(
     Field("zenodo_concept_doi", "string"),
     Field("zenodo_concept_badge", "string"),
     Field("geographic_extent", "geometry()"),
-    Field("geographic_extent_utm50n", "geometry(public, 32650, 2)"),
+    Field(
+        "geographic_extent_local",
+        f"geometry(public, {configuration.get('geo.local_epsg')}, 2)",
+    ),
     Field("temporal_extent_start", "date"),
     Field("temporal_extent_end", "date"),
     Field("dataset_history", "text"),
