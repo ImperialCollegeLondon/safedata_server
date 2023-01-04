@@ -17,6 +17,66 @@ from gluon import current
 from gluon.serializers import json as web2py_json
 
 
+def get_index():
+
+    """
+    Function to generate a JSON string containing the formatted contents of the dataset
+    files table. This is used as the core index of the safedata package, so is cached in
+    a file like format along with MD5 hashes of the index and other files to speed up
+    checking for updates and refreshing the index.
+    """
+
+    # version of the data contained in the dataset description
+    db = current.db
+    val = (
+        db(db.published_datasets.id == db.dataset_files.dataset_id)
+        .select(
+            db.published_datasets.publication_date,
+            db.published_datasets.zenodo_concept_id,
+            db.published_datasets.zenodo_record_id,
+            db.published_datasets.dataset_access,
+            db.published_datasets.dataset_embargo,
+            db.published_datasets.dataset_title,
+            db.published_datasets.most_recent,
+            db.dataset_files.checksum,
+            db.dataset_files.filename,
+            db.dataset_files.filesize,
+            orderby=[db.published_datasets.id, db.dataset_files.id],
+        )
+        .as_list()
+    )
+
+    # repackage the db output into a single dictionary per file
+    [r["published_datasets"].update(r.pop("dataset_files")) for r in val]
+    val = [r["published_datasets"] for r in val]
+
+    # Find the hashes
+    index_hash = hashlib.md5(web2py_json(val).encode("utf-8")).hexdigest()
+
+    # Use the file hash of the static gazetteer geojson
+    gazetteer_file = os.path.join(
+        current.request.folder, "static", "files", "gis", "gazetteer.geojson"
+    )
+    with open(gazetteer_file) as f:
+        gazetteer_hash = hashlib.md5(f.read().encode("utf-8")).hexdigest()
+
+    # Use the file hash of the static locations alias csv
+    location_aliases_file = os.path.join(
+        current.request.folder, "static", "files", "gis", "location_aliases.csv"
+    )
+    with open(location_aliases_file) as f:
+        location_aliases_hash = hashlib.md5(f.read().encode("utf-8")).hexdigest()
+
+    return dict(
+        hashes=dict(
+            index=index_hash,
+            gazetteer=gazetteer_hash,
+            location_aliases=location_aliases_hash,
+        ),
+        index=val,
+    )
+
+
 def server_post_metadata(payload: dict) -> int:
     """Populate the dataset tables from posted metadata.
 
@@ -132,6 +192,10 @@ def server_post_metadata(payload: dict) -> int:
         for kywd in dataset["keywords"]:
             db.dataset_keywords.insert(dataset_id=published_record, keyword=kywd)
 
+    # Update the index
+    current.cache.ram.clear("index")
+    current.cache.ram("index", get_index, None)
+
     return published_record
 
 
@@ -172,7 +236,7 @@ def server_update_gazetteer(payload: dict) -> None:
             data["wkt_wgs84"] = "SRID=4326;" + shape(ft["geometry"]).wkt
             db.gazetteer.insert(**data)
 
-        # Recalculate the UTM50N geometries - using the extended pydal GIS
+        # Recalculate the local projected geometries - using the extended pydal GIS
         db(db.gazetteer).update(
             wkt_local=db.gazetteer.wkt_wgs84.st_transform(
                 current.configuration.get("geo.local_epsg")
@@ -186,10 +250,11 @@ def server_update_gazetteer(payload: dict) -> None:
     try:
         #  - drop the current contents
         db.gazetteer_alias.truncate()
-        # Parse the data into row dictionaries and remove null values
+        print(location_aliases)
+        # Parse the data into row dictionaries and set NA values to None
         data = list(DictReader(StringIO(location_aliases)))
         for row in data:
-            if row["zenodo_record_id"] == "null":
+            if row["zenodo_record_id"] == "NA":
                 row["zenodo_record_id"] = None
             # Insert the data rows
             db.gazetteer_alias.insert(**row)
@@ -209,8 +274,9 @@ def server_update_gazetteer(payload: dict) -> None:
     with open(alias_file, "w") as alias_out:
         alias_out.write(location_aliases)
 
-    # Update the ram cache with the md5 stamps
-    current.cache.ram("version_stamps", None)
+    # Update the index cache
+    current.cache.ram.clear("index")
+    current.cache.ram("index", get_index, None)
 
     # Now if all is well, allow those updates to be committed.
     db.commit()
@@ -466,7 +532,7 @@ def dataset_parse_spatial(wkt=None, location=None):
     elif location is not None:
         gazetteer_location = gazetteer_location = (
             db(db.gazetteer.location == location)
-            .select(db.gazetteer.wkt_utm50n.st_aswkb().with_alias("wkb"))
+            .select(db.gazetteer.wkt_local.st_aswkb().with_alias("wkb"))
             .first()
         )
         if gazetteer_location is not None:
@@ -493,10 +559,10 @@ def dataset_parse_spatial(wkt=None, location=None):
         if not is_lat_long:
             return {"error": 400, "message": "WKT geometry coordinates not as lat/long"}
 
-        # iii) Convert to UTM50N
+        # iii) Convert to local projected
         query_geom = db.executesql(
-            "SELECT st_transform(st_geomfromwkb(decode('{0}', 'hex')), 32650);".format(
-                query_geom
+            "SELECT st_transform(st_geomfromwkb(decode('{0}', 'hex')), {1});".format(
+                query_geom, current.configuration.get("geo.local_epsg")
             )
         )[0][0]
 
@@ -542,8 +608,8 @@ def dataset_spatial_search(wkt=None, location=None, distance=0):
         (db.published_datasets.id == db.dataset_locations.dataset_id)
         & (db.dataset_locations.name == db.gazetteer.location)
         & (
-            (db.gazetteer.wkt_utm50n.st_distance(query_geom) <= distance)
-            | (db.dataset_locations.wkt_utm50n.st_distance(query_geom) <= distance)
+            (db.gazetteer.wkt_local.st_distance(query_geom) <= distance)
+            | (db.dataset_locations.wkt_local.st_distance(query_geom) <= distance)
         )
     )
 
@@ -594,78 +660,15 @@ def dataset_spatial_bbox_search(
 
     # Query the geographic extents with the appropriate predicate
     if match_type == "intersect":
-        qry = db.published_datasets.geographic_extent_utm50n.st_intersects(query_geom)
+        qry = db.published_datasets.geographic_extent_local.st_intersects(query_geom)
     elif match_type == "contain":
-        qry = db.published_datasets.geographic_extent_utm50n.st_contains(query_geom)
+        qry = db.published_datasets.geographic_extent_local.st_contains(query_geom)
     elif match_type == "within":
-        qry = db.published_datasets.geographic_extent_utm50n.st_within(query_geom)
+        qry = db.published_datasets.geographic_extent_local.st_within(query_geom)
     elif match_type == "distance":
         qry = (
-            db.published_datasets.geographic_extent_utm50n.st_distance(query_geom)
+            db.published_datasets.geographic_extent_local.st_distance(query_geom)
             <= distance
         )
 
     return qry
-
-
-def get_index():
-
-    """
-    Function to generate a JSON string containing the formatted contents of the dataset
-    files table. This is used as the core index of the safedata package, so is cached in
-    a file like format along with MD5 hashes of the index and other files to speed up
-    checking for updates and refreshing the index.
-    """
-
-    # version of the data contained in the dataset description
-    db = current.db
-    qry = db.published_datasets.id == db.dataset_files.dataset_id
-    val = dataset_query_to_json(
-        qry,
-        fields=[
-            ("published_datasets", "publication_date"),
-            ("published_datasets", "zenodo_concept_id"),
-            ("published_datasets", "zenodo_record_id"),
-            ("published_datasets", "dataset_access"),
-            ("published_datasets", "dataset_embargo"),
-            ("published_datasets", "dataset_title"),
-            ("published_datasets", "most_recent"),
-            ("dataset_files", "checksum"),
-            ("dataset_files", "filename"),
-            ("dataset_files", "filesize"),
-        ],
-    )
-
-    # repackage the db output into a single dictionary per file
-    entries = val["entries"].as_list()
-    [r["published_datasets"].update(r.pop("dataset_files")) for r in entries]
-    val["entries"] = [r["published_datasets"] for r in entries]
-
-    # Find the hashes
-    index_hash = hashlib.md5(web2py_json(val).encode("utf-8")).hexdigest()
-
-    # Use the file hash of the static gazetteer geojson
-    gazetteer_file = os.path.join(
-        current.request.folder, "static", "files", "gis", "gazetteer.geojson"
-    )
-    with open(gazetteer_file) as f:
-        gazetteer_hash = hashlib.md5(f.read().encode("utf-8")).hexdigest()
-
-    # Use the file hash of the static locations alias csv
-    location_aliases_file = os.path.join(
-        current.request.folder, "static", "files", "gis", "location_aliases.csv"
-    )
-    with open(location_aliases_file) as f:
-        location_aliases_hash = hashlib.md5(f.read().encode("utf-8")).hexdigest()
-
-    return dict(
-        hashes=dict(
-            index=index_hash,
-            gazetteer=gazetteer_hash,
-            location_aliases=location_aliases_hash,
-        ),
-        index=val,
-    )
-
-    # return the dictionary - this will be json serialised by the API when it is returned
-    return val
