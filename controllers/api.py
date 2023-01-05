@@ -12,8 +12,12 @@ Individual API endpoints are exposed using the web2py @request.restful decorator
 """
 
 import os
+import sys
+import traceback
 import inspect
 import json
+
+from gluon.serializers import json as web2py_json
 
 from safedata_server_api import (
     dataset_taxon_search,
@@ -42,6 +46,7 @@ API_ENDPOINTS = [
     "records",
     "files",
     "taxa",
+    "search",
 ]
 
 # A dictionary of search endpoint names and the underlying functions.
@@ -58,7 +63,37 @@ SEARCH_FUNC = {
 
 
 # ------------------------------------------------------------------
-# Website dataset API
+# Website dataset API index page
+# ------------------------------------------------------------------
+
+
+def index():
+    """Help page for the dataset server API
+
+    This controller serves help documentation about the API to the root URL of the API
+    endpoint.
+    """
+
+    # API endpoint documentation from their docstrings
+    docs = TABLE(
+        [
+            (TAG.CODE(endpt), PRE(inspect.getdoc(globals()[endpt])))
+            for endpt in API_ENDPOINTS
+        ],
+        _class="table table-striped",
+    )
+
+    # Search function docstrings as HTML
+    srch_docs = TABLE(
+        [(TAG.CODE(ky), PRE(inspect.getdoc(fn))) for ky, fn in SEARCH_FUNC.items()],
+        _class="table table-striped",
+    )
+
+    return dict(docs=docs, srch_docs=srch_docs)
+
+
+# ------------------------------------------------------------------
+# API Resources
 # ------------------------------------------------------------------
 
 
@@ -91,39 +126,13 @@ def _parse_vars(vars):
     return most_recent, ids
 
 
-def index():
-    """Help page for the dataset server API
-
-    This controller serves help documentation about the API to the root URL of the API
-    endpoint.
-    """
-
-    # API endpoint documentation from their docstrings
-    docs = TABLE(
-        [
-            (TAG.CODE(endpt), PRE(inspect.getdoc(globals()[endpt])))
-            for endpt in API_ENDPOINTS
-        ],
-        _class="table table-striped",
-    )
-
-    # Search function docstrings as HTML
-    srch_docs = TABLE(
-        [(TAG.CODE(ky), PRE(inspect.getdoc(fn))) for ky, fn in SEARCH_FUNC.items()],
-        _class="table table-striped",
-    )
-
-    return dict(docs=docs, srch_docs=srch_docs)
-
-
-# ------------------------------------------------------------------
-# Resources
-# ------------------------------------------------------------------
-
-
 @request.restful()
 def gazetteer():
-    """Returns the content of the gazetteer GeoJSON file."""
+    """Returns the content of the gazetteer GeoJSON file.
+
+    Example use:
+        /api/gazetteer.json
+    """
 
     response.view = "generic.json"
 
@@ -141,7 +150,11 @@ def gazetteer():
 
 @request.restful()
 def location_aliases():
-    """Returns the content of the location aliases CSV file."""
+    """Returns the content of the location aliases CSV file.
+
+    Example use:
+        /api/location_aliases.csv
+    """
 
     response.view = "generic.json"
 
@@ -161,8 +174,14 @@ def location_aliases():
 
 @request.restful()
 def metadata_index_hashes():
-    """Get the MD5 hashes for the metadata index, gazetteer and location aliases."""
+    """Get the MD5 hashes for the metadata index, gazetteer and location aliases.
+
+    Example use:
+        /api/metadata_index_hashes.json
+    """
+
     response.view = "generic.json"
+    request.env.content_type = request.env.content_type or "application/json"
 
     def GET(*args, **vars):
 
@@ -173,7 +192,11 @@ def metadata_index_hashes():
 
 @request.restful()
 def metadata_index():
-    """Get the complete dataset metadata index"""
+    """Get the complete dataset metadata index
+
+    Example use:
+        /api/metadata_index.json
+    """
 
     # The output from this endpoint is used as the core index for the safedata
     # R package. The output is therefore cached in ram: i) to speed up access and
@@ -186,7 +209,8 @@ def metadata_index():
 
     def GET(*args, **vars):
 
-        return cache.ram("index", get_index, time_expire=None)["index"]
+        val = cache.ram("index", get_index, time_expire=None)["index"]
+        return web2py_json(val)
 
     return locals()
 
@@ -195,8 +219,9 @@ def metadata_index():
 def post_metadata():
     """Post dataset and zenodo metadata for a validated and published dataset.
 
-    Using this API requires a valid metadata upload token to be passed in the request
-    'token' variable.
+    The post request body should be JSON data providing two metadata objects: "dataset"
+    for the dataset metadata and "zenodo" for the Zenodo publication metadata, and the
+    request must include the variable 'token', providing a valid security token.
     """
     response.view = "generic.json"
 
@@ -227,8 +252,9 @@ def post_metadata():
 def update_gazetteer():
     """Update the gazeetteer and location aliases data.
 
-    Using this API requires a valid metadata upload token to be passed in the request
-    'token' variable.
+    The post request body should be JSON data providing two objects: "gazetteer" JSON
+    data and the "location_aliases" file data as a CSV string. The request must also
+    include the variable 'token', providing a valid security token.
     """
 
     response.view = "generic.json"
@@ -265,7 +291,7 @@ def records():
     dataset page but as machine readable JSON data.
 
     Example usage:
-        /api/record/1198302
+        /api/record/1198302.json
     """
     response.view = "generic.json"
 
@@ -320,8 +346,8 @@ def files():
     query parameters.
 
     Example usage:
-        /api/files
-        /api/files?most_recent
+        /api/files.json
+        /api/files.json?most_recent
     """
     response.view = "generic.json"
 
@@ -370,7 +396,7 @@ def taxa():
     recording each taxon.
 
     Example use:
-        /api/taxa
+        /api/taxa.json
     """
     response.view = "generic.json"
 
@@ -398,15 +424,18 @@ def taxa():
             txn.update(txn.pop("dataset_taxa"))
             del txn["_extra"]
 
-        return json.dumps(val)
+        return web2py_json(val)
 
     return locals()
 
 
 @request.restful()
 def search():
-    """Get all taxa across studies - retrieve codes, names and status along
-    with the number of datasets the taxon appears in
+    """Search for datasets
+
+    This endpoint provides a number of search options used to identify datasets that
+    meet different search criteria. See the search function documentation below for the
+    different search arguments and query variables.
     """
     response.view = "generic.json"
 
@@ -414,7 +443,8 @@ def search():
 
         if len(args) == 1 and args[0] in SEARCH_FUNC:
 
-            # validate the remaining query search parameters to the search function arguments
+            # validate the remaining query search parameters to the search function
+            # arguments
             func = SEARCH_FUNC[args[0]]
             fn_args = inspect.getargspec(func).args
             unknown_args = set(vars) - set(fn_args)
@@ -436,8 +466,12 @@ def search():
                         return dataset_query_to_json(qry, most_recent, ids)
                 except TypeError as e:
                     raise HTTP(400, f"Could not parse api request: {e}")
+        elif len(args) == 0:
+            raise HTTP(
+                400,
+                f"Provide one of the following search type arguments: {', '.join(SEARCH_FUNC.keys())}",
+            )
         else:
-
             raise HTTP(400, "Unknown arguments to search API.")
 
     return locals()

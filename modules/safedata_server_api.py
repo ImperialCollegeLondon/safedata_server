@@ -93,7 +93,7 @@ def server_post_metadata(payload: dict) -> int:
     """
 
     db = current.db
-    dataset = payload["metadata"]
+    dataset = payload["dataset"]
     zenodo = payload["zenodo"]
 
     # Now create a published datasets entry
@@ -194,7 +194,7 @@ def server_post_metadata(payload: dict) -> int:
 
     # Update the index
     current.cache.ram.clear("index")
-    current.cache.ram("index", get_index, None)
+    current.cache.ram("index", get_index, time_expire=None)
 
     return published_record
 
@@ -250,7 +250,7 @@ def server_update_gazetteer(payload: dict) -> None:
     try:
         #  - drop the current contents
         db.gazetteer_alias.truncate()
-        print(location_aliases)
+
         # Parse the data into row dictionaries and set NA values to None
         data = list(DictReader(StringIO(location_aliases)))
         for row in data:
@@ -276,7 +276,7 @@ def server_update_gazetteer(payload: dict) -> None:
 
     # Update the index cache
     current.cache.ram.clear("index")
-    current.cache.ram("index", get_index, None)
+    current.cache.ram("index", get_index, time_expire=None)
 
     # Now if all is well, allow those updates to be committed.
     db.commit()
@@ -317,27 +317,31 @@ def dataset_query_to_json(
     return {"count": len(rows), "entries": rows}
 
 
-def dataset_taxon_search(gbif_id=None, name=None, rank=None):
+def dataset_taxon_search(taxon_id=None, name=None, rank=None, auth=None):
 
     """Search for datasets by taxon information
 
     Examples:
-        /api/search/taxa?name=Formicidae
-        /api/search/taxa?gbif_id=4342
-        /api/search/taxa?rank=Family
+        /api/search/taxa.json?name=Formicidae
+        /api/search/taxa.json?taxon_id=4342&auth=GBIF
+        /api/search/taxa.json?rank=Family
 
     Args:
-        gbif_id (int): A GBIF taxon id.
+        taxon_id (int): A taxon id code.
         name (str): A scientific name
         rank (str): A taxonomic rank. Note that GBIF only provides
             kingdom, phylum, order, class, family, genus and species.
+        auth (str): The taxonomic database used to validate the taxon.
     """
 
     db = current.db
     qry = db.published_datasets.id == db.dataset_taxa.dataset_id
 
-    if gbif_id is not None:
-        qry &= db.dataset_taxa.gbif_id == gbif_id
+    if auth is not None:
+        qry &= db.dataset_taxa.taxon_auth == auth
+
+    if taxon_id is not None:
+        qry &= db.dataset_taxa.taxon_id == taxon_id
 
     if name is not None:
         qry &= db.dataset_taxa.taxon_name == name
@@ -353,7 +357,7 @@ def dataset_author_search(name=None):
     """Search for datasets by author name
 
     Examples:
-        /api/search/authors?name=Wilk
+        /api/search/authors.json?name=Wilk
 
     Args:
         name (str): An author name or part of a name
@@ -373,7 +377,7 @@ def dataset_locations_search(name=None):
     """Search for datasets with data at a named location
 
     Examples:
-        /api/search/location?name=A_1
+        /api/search/locations.json?name=A_1
 
     Args:
         name (str): A location name
@@ -393,10 +397,10 @@ def dataset_date_search(date=None, match_type="intersect"):
     """Search for datasets by temporal extent
 
     Examples:
-        /api/search/dates?date=2014-06-12
-        /api/search/dates?date=2014-06-12,2015-06-12
-        /api/search/dates?date=2014-06-12,2015-06-12&match_type=contains
-        /api/search/dates?date=2014-06-12,2015-06-12&match_type=within
+        /api/search/dates.json?date=2014-06-12
+        /api/search/dates.json?date=2014-06-12,2015-06-12
+        /api/search/dates.json?date=2014-06-12,2015-06-12&match_type=contains
+        /api/search/dates.json?date=2014-06-12,2015-06-12&match_type=within
 
     Args:
         date (str): A string containing one or two (comma separated) dates in ISO format (2019-06-12)
@@ -456,9 +460,9 @@ def dataset_field_search(text=None, ftype=None):
     """Search for datasets by data field information
 
     Examples:
-        /api/search/fields?text=temperature
-        /api/search/fields?ftype=numeric
-        /api/search/fields?text=temperature&ftype=numeric
+        /api/search/fields.json?text=temperature
+        /api/search/fields.json?ftype=numeric
+        /api/search/fields.json?text=temperature&ftype=numeric
 
     Args:
         text (str): A string to look for within the field name and description.
@@ -484,7 +488,7 @@ def dataset_text_search(text=None):
     """Search for datasets by free text search
 
     Examples:
-        /api/search/text?text=humus
+        /api/search/text.json?text=humus
 
     Args:
         text (str): A string to look within dataset, worksheet and field
@@ -573,28 +577,29 @@ def dataset_spatial_search(wkt=None, location=None, distance=0):
 
     """Spatial search for sampling locations.
 
-    This endpoint can search for datasets using either a user-provided geometry or the geometry
-    of a named location from the SAFE gazetteer. The sampling locations provided in each dataset
-    are tested to see if they intersect the search geometry and a buffer distance can also be
-    provided to search around the query geometry.
+    This endpoint can search for datasets using either a user-provided geometry or the
+    geometry of a named location from the gazetteer. The sampling locations provided in
+    each dataset are tested to see if they intersect the search geometry and a buffer
+    distance can also be provided to search around the query geometry.
 
-    Note that this endpoint will not retrieve datasets that have not provided sampling locations
-    or use new locations that are missing coordinate information. The bounding box endpoint
-    uses the dataset geographic extent, which is provided for all datasets.
+    Note that this endpoint will not retrieve datasets that have not provided sampling
+    locations or use new locations that are missing coordinate information. The bounding
+    box endpoint uses the dataset geographic extent, which is provided for all datasets.
 
     Examples:
-        /api/search/spatial?location=A_1
-        /api/search/spatial?location=A_1&distance=50
-        /api/search/spatial?wkt=Point(116.5 4.75)
-        /api/search/spatial?wkt=Point(116.5 4.75)&distance=50000
-        /api/search/spatial?wkt=Polygon((110 0, 110 10,120 10,120 0,110 0))
+        /api/search/spatial.json?location=A_1
+        /api/search/spatial.json?location=A_1&distance=50
+        /api/search/spatial.json?wkt=Point(116.5 4.75)
+        /api/search/spatial.json?wkt=Point(116.5 4.75)&distance=50000
+        /api/search/spatial.json?wkt=Polygon((110 0, 110 10,120 10,120 0,110 0))
 
     Args:
-        wkt (str): A well-known text geometry. This is assumed to use latitude and longitude
-            coordinates in WGS84 (EPSG:4326).
-        location (str): A location name used to select a query geometry from the SAFE gazetteer.
-        distance (float): A search distance in metres. All geometries are converted to the
-            UTM 50N projection to provide appopriate distance searching.
+        wkt (str): A well-known text geometry. This is assumed to use latitude and
+            longitude coordinates in WGS84 (EPSG:4326).
+        location (str): A location name used to select a query geometry from the SAFE
+            gazetteer.
+        distance (float): A search distance in metres. All geometries are converted to
+            the local projection to provide appopriate distance searching.
     """
 
     db = current.db
@@ -622,26 +627,26 @@ def dataset_spatial_bbox_search(
 
     """Spatial search for dataset bounding boxes
 
-    The endpoint can search for datasets using either a user-provided geometry or a location
-    name from the SAFE gazetteer. This endpoint uses only the dataset bounding box, which is
-    provided for all datasets, rather than sampling location information which may not be
-    recorded for some datasets.
+    The endpoint can search for datasets using either a user-provided geometry or a
+    location name from the SAFE gazetteer. This endpoint uses only the dataset bounding
+    box, which is provided for all datasets, rather than sampling location information
+    which may not be recorded for some datasets.
 
     Examples:
-        /api/search/bbox?wkt=Polygon((110 0, 110 10,120 10,120 0,110 0))
-        /api/search/bbox?wkt=Polygon((116 4.5,116 5,117 5,117 4.5,116 4.5))
-        /api/search/bbox?wkt=Polygon((116 4.5,116 5,117 5,117 4.5,116 4.5))&match_type=contain
-        /api/search/bbox?wkt=Point(116.5 4.75)&match_type=within
+        /api/search/bbox.json?wkt=Polygon((110 0, 110 10,120 10,120 0,110 0))
+        /api/search/bbox.json?wkt=Polygon((116 4.5,116 5,117 5,117 4.5,116 4.5))
+        /api/search/bbox.json?wkt=Polygon((116 4.5,116 5,117 5,117 4.5,116 4.5))&match_type=contain
+        /api/search/bbox.json?wkt=Point(116.5 4.75)&match_type=within
 
     Args:
         wkt (str): A well-known text geometry. This is assumed to use latitude and longitude
             coordinates in WGS84 (EPSG:4326).
-        location (str): A location name used to select a query geometry from the SAFE gazetteer.
-        match_type (str): One of 'intersect', 'contain' and 'within' to match the provided geometry
-            to the geographic extents of datasets. The 'contain' option returns datasets that
-            completely cover the query geometry and 'within' returns datasets that fall entirely
-            within the query geometry.
-
+        location (str): A location name used to select a query geometry from the SAFE
+            gazetteer.
+        match_type (str): One of 'intersect', 'contain' and 'within' to match the
+            provided geometry to the geographic extents of datasets. The 'contain'
+            option returns datasets that completely cover the query geometry and
+            'within' returns datasets that fall entirely within the query geometry.
     """
 
     db = current.db

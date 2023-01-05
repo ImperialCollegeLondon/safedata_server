@@ -17,7 +17,10 @@ page giving a description of the API endpoints.</p>
 
 <pre>{{=URL(c="api", f=" ", host=True, scheme=True)}}</pre>
 
-
+The API endpoints all provide data download in different formats, using request to
+indicate the required content type. In most cases, it is most useful to specify that the
+request is for <code>.json</code> data, as shown in the example usage below, but other
+content types are available.
 
 <h2>Shared endpoint variables</h2>
 
