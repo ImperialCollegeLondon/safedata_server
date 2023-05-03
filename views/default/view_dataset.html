@@ -1,0 +1,26 @@
+{{extend 'layout.html'}}
+
+<H2>Dataset metadata details</H2>
+
+<DIV class='panel panel-default'>
+    <DIV class='panel-heading'>
+        <DIV class='row'>
+            <DIV class='col-sm-9'>
+                <H4>{{=record.dataset_title}}</H4>
+            </DIV>
+            <DIV class='col-sm-3'>
+                <DIV class='pull-right'>
+                    <A href={{=record.zenodo_concept_doi}}><IMG src={{=record.zenodo_concept_badge}}></A>
+                </DIV>
+            </DIV>
+        </DIV>
+    </DIV>
+    {{=history_table}}
+    <DIV class='panel-body'>
+        <DIV class='row'>
+            <DIV class='col-sm-12'>
+                {{=description}}
+            </DIV>
+        </DIV>
+    </DIV>
+</DIV>
