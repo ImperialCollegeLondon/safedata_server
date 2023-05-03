@@ -62,9 +62,7 @@ def datasets():
             body=lambda row: A(
                 "Details",
                 _class="button btn btn-sm btn-default",
-                _href=URL(
-                    "datasets", "view_dataset", vars={"id": row.zenodo_record_id}
-                ),
+                _href=URL("default", "view_dataset", vars={"id": row.zenodo_record_id}),
             ),
         )
     ]
@@ -94,6 +92,101 @@ def datasets():
     )
 
     return dict(form=form)
+
+
+def view_dataset():
+
+    """
+    View of a specific version of a dataset, taking the zenodo record id as the
+    id parameter, but which also shows other published versions of the dataset concept.
+    """
+
+    ds_id = request.vars["id"]
+
+    if ds_id is None:
+        # no id provided
+        session.flash = "Missing dataset id"
+        redirect(URL("datasets", "view_datasets"))
+
+    try:
+        ds_id = int(ds_id)
+    except ValueError:
+        session.flash = "Dataset id is not an integer"
+        redirect(URL("datasets", "view_datasets"))
+
+    # Does the record identify a specific version
+    record = db(db.published_datasets.zenodo_record_id == ds_id).select().first()
+
+    # If not, does it identify a concept, so get the most recent
+    if record is None:
+        record = (
+            db(
+                (db.published_datasets.zenodo_concept_id == ds_id)
+                & (db.published_datasets.most_recent == True)
+            )
+            .select()
+            .first()
+        )
+        # Otherwise, bail
+        if record is None:
+            # non-existent id provided
+            session.flash = "Database record id does not exist"
+            redirect(URL("datasets", "view_datasets"))
+        else:
+            ds_id = record.zenodo_record_id
+
+    # get the version history
+    qry = db.published_datasets.zenodo_concept_id == record.zenodo_concept_id
+
+    history = db(qry).select(
+        db.published_datasets.id,
+        db.published_datasets.publication_date,
+        # db.published_datasets.uploader_id,
+        db.published_datasets.zenodo_record_badge,
+        db.published_datasets.zenodo_record_doi,
+        db.published_datasets.zenodo_record_id,
+        orderby=~db.published_datasets.publication_date,
+    )
+
+    # style that into a table showing the currently viewed version
+
+    view = SPAN(
+        _class="glyphicon glyphicon-eye-open", _style="color:green;font-size: 1.4em;"
+    )
+    alt = SPAN(
+        _class="glyphicon glyphicon-eye-close",
+        _style="color:grey;font-size: 1.4em;",
+        _title="View this version",
+    )
+
+    history_table = TABLE(
+        TR(
+            TH("Viewing"),
+            TH("Version publication date"),  # TH('Uploaded by'),
+            TH("Zenodo DOI"),
+        ),
+        *[
+            TR(
+                TD(view)
+                if r.zenodo_record_id == ds_id
+                else TD(A(alt, _href=URL(vars={"id": r.zenodo_record_id}))),
+                TD(r.publication_date),
+                # TD(r.uploader_id.first_name + ' ' + r.uploader_id.last_name),
+                TD(A(IMG(_src=r.zenodo_record_badge), _href=r.zenodo_record_doi)),
+            )
+            for r in history
+        ],
+        _width="100%",
+        _class="table table-striped table-bordered"
+    )
+
+    # get the description
+    description = XML(dataset_description(record, gemini_id=ds_id))
+
+    # get projects
+    # db(db)
+
+    return dict(record=record, description=description, history_table=history_table)
 
 
 # ---- Action for login/register/etc (required for auth) -----
