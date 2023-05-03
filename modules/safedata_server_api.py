@@ -81,9 +81,9 @@ def server_post_metadata(payload: dict) -> int:
     """Populate the dataset tables from posted metadata.
 
     This function takes a dictionary payload from the JSON request body containing both
-    the Zenodo metadata for a published dataset and the dataset validation metadata from
-    safedata_validator. It then uses this payload to populate the various dataset
-    tables.
+    the Zenodo metadata for a published dataset ('zenodo') and the dataset validation
+    metadata from safedata_validator ('metadata'). It then uses this payload to populate
+    the various dataset tables.
 
     Args:
         payload: The parsed JSON payload
@@ -93,7 +93,7 @@ def server_post_metadata(payload: dict) -> int:
     """
 
     db = current.db
-    dataset = payload["dataset"]
+    dataset = payload["metadata"]
     zenodo = payload["zenodo"]
 
     # Now create a published datasets entry
