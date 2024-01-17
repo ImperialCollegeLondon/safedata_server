@@ -6,7 +6,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 
 response.menu = [
-    (T('Datasets'), False, URL('default', 'datasets')),
-    (T('API'), False, URL('default', 'api')),
-    (T('Database'), False, URL('appadmin', 'index'))
+    (T("Datasets"), False, URL("default", "datasets")),
+    (T("API"), False, URL("api", "index")),
+    (T("Database"), False, URL("appadmin", "index")),
 ]
