@@ -98,7 +98,6 @@ def index():
 
 
 def _parse_vars(vars):
-
     if "most_recent" in vars:
         most_recent = vars.pop("most_recent")
 
@@ -137,7 +136,6 @@ def gazetteer():
     response.view = "generic.json"
 
     def GET(*args, **vars):
-
         try:
             fpath = os.path.join(request.folder, "static/files/gis/gazetteer.geojson")
             with open(fpath, "rb") as fdata:
@@ -159,7 +157,6 @@ def location_aliases():
     response.view = "generic.json"
 
     def GET(*args, **vars):
-
         try:
             fpath = os.path.join(
                 request.folder, "static/files/gis/location_aliases.csv"
@@ -184,7 +181,6 @@ def metadata_index_hashes():
     request.env.content_type = request.env.content_type or "application/json"
 
     def GET(*args, **vars):
-
         return cache.ram("index", get_index, time_expire=None)["hashes"]
 
     return locals()
@@ -208,7 +204,6 @@ def metadata_index():
     response.view = "generic.json"
 
     def GET(*args, **vars):
-
         val = cache.ram("index", get_index, time_expire=None)["index"]
         return web2py_json(val)
 
@@ -226,7 +221,6 @@ def post_metadata():
     response.view = "generic.json"
 
     def POST(*args, **vars):
-
         # Check the validation token
         if configuration.get("metadata_upload.token") != vars.get("token"):
             raise HTTP(403, "Invalid metadata upload token.")
@@ -260,7 +254,6 @@ def update_gazetteer():
     response.view = "generic.json"
 
     def POST(*args, **vars):
-
         # Check the validation token
         if configuration.get("metadata_upload.token") != vars.get("token"):
             raise HTTP(403, "Invalid metadata upload token.")
@@ -283,7 +276,7 @@ def update_gazetteer():
 
 
 @request.restful()
-def records():
+def record():
     """Get JSON metadata for a single dataset record.
 
     This endpoint returns the metadata for a single provided Zenodo record ID. This is
@@ -296,9 +289,7 @@ def records():
     response.view = "generic.json"
 
     def GET(*args, **vars):
-
         if len(request.args) == 1:
-
             try:
                 record_id = int(request.args[0])
             except ValueError:
@@ -318,12 +309,13 @@ def records():
                     val["publication_date"] = record.publication_date
                     val["zenodo_concept_id"] = record.zenodo_concept_id
                     val["zenodo_record_id"] = record.zenodo_record_id
-                    val["taxa"] = record.dataset_taxa.select()
-                    val["locations"] = record.dataset_locations.select(
-                        db.dataset_locations.name,
-                        db.dataset_locations.new_location,
-                        db.dataset_locations.wkt_wgs84,
-                    )
+                    # TODO: Decide here!
+                    # val["taxa"] = record.dataset_taxa.select()
+                    # val["locations"] = record.dataset_locations.select(
+                    #     db.dataset_locations.name,
+                    #     db.dataset_locations.new_location,
+                    #     db.dataset_locations.wkt_wgs84,
+                    # )
 
                     return val
 
@@ -352,7 +344,6 @@ def files():
     response.view = "generic.json"
 
     def GET(*args, **vars):
-
         most_recent, ids = _parse_vars(vars)
 
         # /api/files endpoint provides a json file containing the files associated
@@ -401,7 +392,6 @@ def taxa():
     response.view = "generic.json"
 
     def GET(*args, **vars):
-
         taxon_fields = [
             db.dataset_taxa.taxon_auth,
             db.dataset_taxa.taxon_id,
@@ -440,9 +430,7 @@ def search():
     response.view = "generic.json"
 
     def GET(*args, **vars):
-
         if len(args) == 1 and args[0] in SEARCH_FUNC:
-
             # validate the remaining query search parameters to the search function
             # arguments
             func = SEARCH_FUNC[args[0]]

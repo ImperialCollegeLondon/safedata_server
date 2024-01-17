@@ -101,6 +101,8 @@ def view_dataset():
     id parameter, but which also shows other published versions of the dataset concept.
     """
 
+    # TODO - fix me
+
     ds_id = request.vars["id"]
 
     if ds_id is None:
