@@ -43,7 +43,7 @@ API_ENDPOINTS = [
     "location_aliases",
     "metadata_index",
     "metadata_index_hashes",
-    "records",
+    "record",
     "files",
     "taxa",
     "search",

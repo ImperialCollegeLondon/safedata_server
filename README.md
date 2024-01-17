@@ -197,7 +197,7 @@ sudo -H pip install ipython
 
 ```sh
 cd /home/www-data/web2py
-sudo python -c "from gluon.main import save_password; save_password(raw_input('admin password: '),443)"
+sudo python -c "from gluon.main import save_password; save_password(input('admin password: '),443)"
 ```
 
 * Now just to make the user experience nicer, set the routes for web2py so that
