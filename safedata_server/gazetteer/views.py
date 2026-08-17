@@ -92,9 +92,9 @@ class GazetteerUploadView(APIView):
     even if they're absent from the uploaded file.
     """
 
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
-    parser_classes = [MultiPartParser]
+    authentication_classes = (TokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
+    parser_classes = (MultiPartParser,)
 
     def post(self, request, *args, **kwargs):
         uploaded_file = request.FILES.get("file")
@@ -125,9 +125,9 @@ class GazetteerAliasUploadView(APIView):
     first if uploading both.
     """
 
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
-    parser_classes = [MultiPartParser]
+    authentication_classes = (TokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
+    parser_classes = (MultiPartParser,)
 
     def post(self, request, *args, **kwargs):
         uploaded_file = request.FILES.get("file")
@@ -147,3 +147,5 @@ class GazetteerAliasUploadView(APIView):
             return Response({"error": str(exc)}, status=400)
 
         return Response({"status": "ok"}, status=200)
+
+
