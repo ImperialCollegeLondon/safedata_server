@@ -1,5 +1,6 @@
 """Gazetteer views."""
 
+import csv
 import hashlib
 import io
 import json
@@ -12,7 +13,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from gazetteer.models import Gazetteer
+from gazetteer.models import Gazetteer, GazetteerAlias
 
 from .ingest import (
     GazetteerAliasIngestError,
@@ -53,12 +54,41 @@ def gazetteer_hash(request):
     return JsonResponse({"md5": md5})
 
 
+def _current_aliases_csv() -> str:
+    """Serialize all GazetteerAlias rows to CSV, matching the upload format."""
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, quoting=csv.QUOTE_ALL)
+    writer.writerow(["zenodo_record_id", "location", "alias"])
+
+    for alias in GazetteerAlias.objects.select_related("location").order_by("id"):
+        zenodo_record_id = getattr(alias.dataset, "zenodo_record_id", "null")
+        location = getattr(alias.location, "location", "null")
+        writer.writerow([zenodo_record_id, location, alias.alias])
+
+    return buffer.getvalue()
+
+
+def gazetteer_aliases_download(request):
+    """Serve the current gazetteer aliases as a downloadable CSV file."""
+    content = _current_aliases_csv()
+
+    response = HttpResponse(content, content_type="text/csv")
+    response["Content-Disposition"] = 'attachment; filename="location_aliases.csv"'
+    return response
+
+
+def gazetteer_aliases_hash(request):
+    """Return the MD5 hash of the current aliases file."""
+    content = _current_aliases_csv()
+    md5 = hashlib.md5(content.encode("utf-8")).hexdigest()
+
+    return JsonResponse({"md5": md5})
 
 
 class GazetteerUploadView(APIView):
     """Authenticated upload of a new gazetteer GeoJSON file.
 
-    Upserts Gazetteer rows by location name. Never deletes existing rows,
+    Adds/edits Gazetteer rows by location name. Never deletes existing rows,
     even if they're absent from the uploaded file.
     """
 
@@ -90,7 +120,7 @@ class GazetteerUploadView(APIView):
 class GazetteerAliasUploadView(APIView):
     """Authenticated upload of a new gazetteer aliases CSV file.
 
-    Upserts GazetteerAlias rows keyed on (dataset, alias). Referenced
+    Adds/edits GazetteerAlias rows keyed on (dataset, alias). Referenced
     gazetteer locations must already exist - ingest the gazetteer file
     first if uploading both.
     """
