@@ -1,13 +1,21 @@
 # gazetteer/tests.py
-"""Tests for the gazetteer download and hash endpoints."""
+"""Tests for the gazetteer app: download/hash endpoints and authenticated
+upload endpoints, for both the gazetteer and its aliases."""
 
 import hashlib
+import io
 
 import pytest
+from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
+from rest_framework.authtoken.models import Token
+from rest_framework.test import APIClient
 
-from .models import Gazetteer
+from .models import Gazetteer, GazetteerAlias
 
+
+# --- Shared fixtures ---------------------------------------------------------
 
 @pytest.fixture
 def sample_gazetteer(db):
@@ -23,7 +31,26 @@ def sample_gazetteer(db):
     )
 
 
-def test_download_returns_geojson_feature_collection(client, sample_gazetteer):
+@pytest.fixture
+def sample_aliases(db, sample_gazetteer):
+    camp_a = Gazetteer.objects.get(location="River Camp A")
+    GazetteerAlias.objects.create(location=camp_a, alias="Camp A Alt Name")
+    GazetteerAlias.objects.create(location=camp_a, alias="1")
+
+
+@pytest.fixture
+def api_client_with_token(db):
+    user = User.objects.create_user(username="uploader", password="testpass123")
+    token = Token.objects.create(user=user)
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+    return client
+
+
+# --- Gazetteer download / hash -----------------------------------------------
+
+def test_gazetteer_download_returns_geojson_feature_collection(client, sample_gazetteer):
     response = client.get(reverse("gazetteer:download"))
 
     assert response.status_code == 200
@@ -38,29 +65,24 @@ def test_download_returns_geojson_feature_collection(client, sample_gazetteer):
     assert locations == {"River Camp A", "River Camp B"}
 
 
-def test_download_excludes_local_geometry(client, sample_gazetteer):
+def test_gazetteer_download_excludes_local_geometry(client, sample_gazetteer):
     response = client.get(reverse("gazetteer:download"))
     content = response.json()
 
     for feature in content["features"]:
-        # Only geom_wgs84 should be present in the download - geom_local
-        # is an internal detail, not meant for external consumers.
         assert "geom_local" not in feature["properties"]
 
 
-def test_hash_endpoint_returns_md5(client, sample_gazetteer):
+def test_gazetteer_hash_returns_md5(client, sample_gazetteer):
     response = client.get(reverse("gazetteer:hash"))
 
     assert response.status_code == 200
     data = response.json()
     assert "md5" in data
-    assert len(data["md5"]) == 32  # a valid MD5 hex digest is always 32 chars
+    assert len(data["md5"]) == 32
 
 
-def test_hash_matches_downloaded_content(client, sample_gazetteer):
-    """The whole point of the hash endpoint - it must reflect exactly what
-    the download endpoint serves, or downstream tools comparing hashes
-    will get false mismatches."""
+def test_gazetteer_hash_matches_downloaded_content(client, sample_gazetteer):
     download_response = client.get(reverse("gazetteer:download"))
     hash_response = client.get(reverse("gazetteer:hash"))
 
@@ -70,8 +92,7 @@ def test_hash_matches_downloaded_content(client, sample_gazetteer):
     assert actual_md5 == expected_md5
 
 
-def test_hash_changes_when_gazetteer_changes(client, sample_gazetteer):
-    """Confirms the hash reflects live DB state, not a cached/stale value."""
+def test_gazetteer_hash_changes_when_gazetteer_changes(client, sample_gazetteer):
     initial_hash = client.get(reverse("gazetteer:hash")).json()["md5"]
 
     Gazetteer.objects.create(
@@ -83,3 +104,181 @@ def test_hash_changes_when_gazetteer_changes(client, sample_gazetteer):
     updated_hash = client.get(reverse("gazetteer:hash")).json()["md5"]
 
     assert updated_hash != initial_hash
+
+
+# --- Alias download / hash ---------------------------------------------------
+
+def test_alias_download_returns_csv(client, sample_aliases):
+    response = client.get(reverse("gazetteer:alias-download"))
+
+    assert response.status_code == 200
+    assert response["Content-Type"] == "text/csv"
+    assert 'attachment; filename="location_aliases.csv"' in response["Content-Disposition"]
+
+    content = response.content.decode("utf-8")
+    assert "zenodo_record_id" in content
+    assert "location" in content
+    assert "alias" in content
+    assert "Camp A Alt Name" in content
+
+
+def test_alias_download_uses_null_for_general_aliases(client, sample_aliases):
+    response = client.get(reverse("gazetteer:alias-download"))
+    content = response.content.decode("utf-8")
+
+    # All fixture aliases are general (no dataset), so every data row
+    # should have "null" in the zenodo_record_id column - matching the
+    # convention in the existing production CSV file.
+    lines = content.strip().splitlines()
+    data_rows = lines[1:]  # skip header
+    assert len(data_rows) == 2
+    for row in data_rows:
+        assert "null" in row
+
+
+def test_alias_hash_returns_md5(client, sample_aliases):
+    response = client.get(reverse("gazetteer:alias-hash"))
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "md5" in data
+    assert len(data["md5"]) == 32
+
+
+def test_alias_hash_matches_downloaded_content(client, sample_aliases):
+    download_response = client.get(reverse("gazetteer:alias-download"))
+    hash_response = client.get(reverse("gazetteer:alias-hash"))
+
+    expected_md5 = hashlib.md5(download_response.content).hexdigest()
+    actual_md5 = hash_response.json()["md5"]
+
+    assert actual_md5 == expected_md5
+
+
+def test_alias_hash_changes_when_aliases_change(client, sample_aliases):
+    initial_hash = client.get(reverse("gazetteer:alias-hash")).json()["md5"]
+
+    camp_b = Gazetteer.objects.get(location="River Camp B")
+    GazetteerAlias.objects.create(location=camp_b, alias="Camp B Alt Name")
+
+    updated_hash = client.get(reverse("gazetteer:alias-hash")).json()["md5"]
+
+    assert updated_hash != initial_hash
+
+
+# --- Gazetteer upload ---------------------------------------------------------
+
+VALID_GEOJSON = b"""{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {"location": "Uploaded Site"},
+            "geometry": {"type": "Point", "coordinates": [117.6, 4.7]}
+        }
+    ]
+}"""
+
+MALFORMED_GEOJSON = b"""{"type": "Point", "coordinates": [117.6, 4.7]}"""
+
+
+def test_gazetteer_upload_requires_authentication(client, db):
+    upload_file = SimpleUploadedFile(
+        "gazetteer.geojson", VALID_GEOJSON, content_type="application/geo+json"
+    )
+    response = client.post(reverse("gazetteer:upload"), {"file": upload_file})
+
+    assert response.status_code == 401
+    assert Gazetteer.objects.count() == 0
+
+
+def test_gazetteer_upload_succeeds_with_valid_token(api_client_with_token, db):
+    upload_file = SimpleUploadedFile(
+        "gazetteer.geojson", VALID_GEOJSON, content_type="application/geo+json"
+    )
+    response = api_client_with_token.post(
+        reverse("gazetteer:upload"), {"file": upload_file}, format="multipart"
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+    assert Gazetteer.objects.filter(location="Uploaded Site").exists()
+
+
+def test_gazetteer_upload_rejects_malformed_geojson(api_client_with_token, db):
+    upload_file = SimpleUploadedFile(
+        "bad.geojson", MALFORMED_GEOJSON, content_type="application/geo+json"
+    )
+    response = api_client_with_token.post(
+        reverse("gazetteer:upload"), {"file": upload_file}, format="multipart"
+    )
+
+    assert response.status_code == 400
+    assert "error" in response.json()
+
+
+def test_gazetteer_upload_requires_a_file(api_client_with_token, db):
+    response = api_client_with_token.post(
+        reverse("gazetteer:upload"), {}, format="multipart"
+    )
+
+    assert response.status_code == 400
+
+
+# --- Alias upload ---------------------------------------------------------
+
+VALID_ALIAS_CSV = (
+    b'"zenodo_record_id","location","alias"\n'
+    b'"null","River Camp A","1"\n'
+)
+
+ALIAS_CSV_UNKNOWN_LOCATION = (
+    b'"zenodo_record_id","location","alias"\n'
+    b'"null","Nonexistent Site","1"\n'
+)
+
+
+def test_alias_upload_requires_authentication(client, sample_gazetteer):
+    upload_file = SimpleUploadedFile(
+        "aliases.csv", VALID_ALIAS_CSV, content_type="text/csv"
+    )
+    response = client.post(reverse("gazetteer:alias-upload"), {"file": upload_file})
+
+    assert response.status_code == 401
+    assert GazetteerAlias.objects.count() == 0
+
+
+def test_alias_upload_succeeds_with_valid_token(api_client_with_token, sample_gazetteer):
+    upload_file = SimpleUploadedFile(
+        "aliases.csv", VALID_ALIAS_CSV, content_type="text/csv"
+    )
+    response = api_client_with_token.post(
+        reverse("gazetteer:alias-upload"), {"file": upload_file}, format="multipart"
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+    assert GazetteerAlias.objects.filter(alias="1").exists()
+
+
+def test_alias_upload_rejects_unknown_gazetteer_location(
+    api_client_with_token, sample_gazetteer
+):
+    upload_file = SimpleUploadedFile(
+        "aliases.csv", ALIAS_CSV_UNKNOWN_LOCATION, content_type="text/csv"
+    )
+    response = api_client_with_token.post(
+        reverse("gazetteer:alias-upload"), {"file": upload_file}, format="multipart"
+    )
+
+    assert response.status_code == 400
+    assert "error" in response.json()
+    assert GazetteerAlias.objects.count() == 0
+
+
+def test_alias_upload_requires_a_file(api_client_with_token, sample_gazetteer):
+    response = api_client_with_token.post(
+        reverse("gazetteer:alias-upload"), {}, format="multipart"
+    )
+
+    assert response.status_code == 400
