@@ -9,6 +9,7 @@ from gazetteer.views import (
     gazetteer_aliases_hash,
     gazetteer_download,
     gazetteer_hash,
+    gazetteer_map,
 )
 
 app_name = "gazetteer"
@@ -20,4 +21,5 @@ urlpatterns = [
     path("aliases/download/", gazetteer_aliases_download, name="alias-download"),
     path("aliases/hash/", gazetteer_aliases_hash, name="alias-hash"),
     path("aliases/upload/", GazetteerAliasUploadView.as_view(), name="alias-upload"),
+    path("map/", gazetteer_map, name="map"),
 ]

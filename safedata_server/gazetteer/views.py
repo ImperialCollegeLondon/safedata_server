@@ -7,6 +7,7 @@ import json
 
 from django.core.serializers import serialize
 from django.http import HttpResponse, JsonResponse
+from django.shortcuts import render
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import IsAuthenticated
@@ -149,3 +150,6 @@ class GazetteerAliasUploadView(APIView):
         return Response({"status": "ok"}, status=200)
 
 
+def gazetteer_map(request):
+    """Render a Leaflet map of all current gazetteer locations."""
+    return render(request, "gazetteer/map.html")
