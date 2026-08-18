@@ -126,14 +126,18 @@ def ingest_gazetteer_alias_row(row: dict[str, str]) -> None:
 
     dataset = None
     if zenodo_record_id is not None:
-        # datasets.Dataset is currently a minimal placeholder model - this
-        # get_or_create is a temporary stand-in until real dataset ingestion
-        # exists. Revisit once the datasets app is built out: a dataset
-        # referenced by an alias should really already exist from a
-        # published dataset upload, not be silently created here.
+
+        # This alias is for a specific dataset only (not global). We should only
+        # include this alias if the corresponding dataset already exists.
         from datasets.models import Dataset
 
-        dataset, _ = Dataset.objects.get_or_create(zenodo_record_id=zenodo_record_id)
+        try:
+            dataset = Dataset.objects.get(zenodo_record_id=zenodo_record_id)
+        except Dataset.DoesNotExist as exc:
+            raise GazetteerAliasIngestError(
+                f"Alias '{alias_name}' references unknown dataset "
+                f"(zenodo_record_id={zenodo_record_id}). Ingest that dataset first."
+            ) from exc
 
     alias, _ = GazetteerAlias.objects.update_or_create(
         dataset=dataset,
@@ -163,7 +167,10 @@ def ingest_gazetteer_aliases_csv(csv_file: TextIOBase) -> None:
 
     row_count = 0
     for row in reader:
-        ingest_gazetteer_alias_row(row)
+        try:
+            ingest_gazetteer_alias_row(row)
+        except GazetteerAliasIngestError as e:
+            print(f"Alias ingestion failed: {e}")
         row_count += 1
 
     if row_count == 0:

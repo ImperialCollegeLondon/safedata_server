@@ -10,13 +10,9 @@ class DatasetQuerySet(models.QuerySet):
         """Only the most recent version of each dataset (by zenodo_concept_id).
 
         "Most recent" is derived from zenodo_record_id ordering. This assumes
-        Zenodo record ids increase with each new version, which holds true now
-        but is a property of Zenodo's own id allocation, not something
-        enforced by this schema.
+        Zenodo record ids increase with each new version.
 
-        Datasets with no zenodo_concept_id (not yet linked to any Zenodo
-        version chain) are always included, since there's nothing to
-        deduplicate against.
+        TODO: confirm with David that this ordering holds
         """
         latest_per_concept = (
             Dataset.objects.filter(zenodo_concept_id=OuterRef("zenodo_concept_id"))
@@ -24,10 +20,7 @@ class DatasetQuerySet(models.QuerySet):
             .values("zenodo_record_id")[:1]
         )
 
-        return self.filter(
-            models.Q(zenodo_concept_id__isnull=True)
-            | models.Q(zenodo_record_id=Subquery(latest_per_concept))
-        )
+        return self.filter(zenodo_record_id=Subquery(latest_per_concept))
 
 
 class Dataset(models.Model):
@@ -41,12 +34,10 @@ class Dataset(models.Model):
     objects = DatasetQuerySet.as_manager()
 
     zenodo_record_id: models.IntegerField = models.IntegerField(
-        null=True, blank=True, unique=True
+        unique=True
     )
-    zenodo_concept_id: models.IntegerField = models.IntegerField(
-        null=True, blank=True
-    )
-    zenodo_publication_date: models.DateField = models.DateField(null=True, blank=True)
+    zenodo_concept_id: models.IntegerField = models.IntegerField()
+    zenodo_publication_date: models.DateField = models.DateField()
 
     title: models.CharField = models.CharField(max_length=1000)
     description: models.TextField = models.TextField()
