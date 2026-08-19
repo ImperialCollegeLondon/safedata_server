@@ -1,5 +1,6 @@
 from typing import ClassVar
 
+from django.conf import settings
 from django.contrib.gis.db import models as gis_models
 from django.db import models
 from django.db.models import OuterRef, Subquery
@@ -236,6 +237,9 @@ class Locations(models.Model):
         related_name="dataset_usages",
     )
     geom_wgs84: gis_models.GeometryField = gis_models.GeometryField(srid=4326, null=True, blank=True)
+    geom_local: gis_models.GeometryField = gis_models.GeometryField(
+        srid=settings.GAZETTEER_LOCAL_EPSG, null=True, blank=True
+    )
 
     def __str__(self):
         return f"{self.name} ({self.dataset_id})"

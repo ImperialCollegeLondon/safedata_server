@@ -5,6 +5,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any, cast
 
+from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import transaction
 from gazetteer.models import Gazetteer, GazetteerAlias
@@ -194,9 +195,11 @@ def _ingest_locations(dataset: Dataset, locations_data: list[dict[str, Any]]) ->
 
         wkt = location_data.get("wkt_wgs84")
         geometry = None
+        local_geometry = None
         if wkt:
             try:
                 geometry = GEOSGeometry(wkt, srid=4326)
+                local_geometry = geometry.transform(settings.GAZETTEER_LOCAL_EPSG, clone=True)
             except Exception as exc:
                 raise DatasetIngestError(
                     f"Location '{name}' has invalid wkt_wgs84: {exc}"
@@ -208,6 +211,7 @@ def _ingest_locations(dataset: Dataset, locations_data: list[dict[str, Any]]) ->
             new_location=bool(location_data.get("new_location", False)),
             gazetteer_location=gazetteer_location,
             geom_wgs84=geometry,
+            geom_local=local_geometry,
         )
 
 

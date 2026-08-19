@@ -167,10 +167,7 @@ def ingest_gazetteer_aliases_csv(csv_file: TextIOBase) -> None:
 
     row_count = 0
     for row in reader:
-        try:
-            ingest_gazetteer_alias_row(row)
-        except GazetteerAliasIngestError as e:
-            print(f"Alias ingestion failed: {e}")
+        ingest_gazetteer_alias_row(row)
         row_count += 1
 
     if row_count == 0:

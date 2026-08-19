@@ -22,4 +22,5 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("gazetteer/", include("gazetteer.urls")),
     path("datasets/", include("datasets.urls")),
+    path("api/", include("api.urls", namespace="api")),
 ]
