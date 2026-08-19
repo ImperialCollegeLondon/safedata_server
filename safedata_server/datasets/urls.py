@@ -1,6 +1,7 @@
 from django.urls import path
 
 from datasets.views import (
+    DatasetUploadView,
     dataset_detail,
     dataset_index_download,
     dataset_index_hash,
@@ -11,6 +12,7 @@ app_name = "datasets"
 
 urlpatterns = [
     path("", dataset_list, name="list"),
+    path("upload/", DatasetUploadView.as_view(), name="upload"),
     path("index/download/", dataset_index_download, name="index-download"),
     path("index/hash/", dataset_index_hash, name="index-hash"),
     path("<int:pk>/", dataset_detail, name="detail"),
