@@ -5,33 +5,12 @@ from django.db import models
 from django.db.models import OuterRef, Subquery
 
 
-class DatasetQuerySet(models.QuerySet):
-    def latest_versions(self):
-        """Only the most recent version of each dataset (by zenodo_concept_id).
-
-        "Most recent" is derived from zenodo_record_id ordering. This assumes
-        Zenodo record ids increase with each new version.
-
-        TODO: confirm with David that this ordering holds
-        """
-        latest_per_concept = (
-            Dataset.objects.filter(zenodo_concept_id=OuterRef("zenodo_concept_id"))
-            .order_by("-zenodo_record_id")
-            .values("zenodo_record_id")[:1]
-        )
-
-        return self.filter(zenodo_record_id=Subquery(latest_per_concept))
-
-
 class Dataset(models.Model):
     """Top-level metadata for one dataset.
 
     Each version of a dataset (per Zenodo's versioning model) is its own
     complete Dataset entry in the database.
     """
-
-    # Allows access to the latest version of a dataset, in case of multiple versions
-    objects = DatasetQuerySet.as_manager()
 
     zenodo_record_id: models.IntegerField = models.IntegerField(
         unique=True
@@ -56,6 +35,17 @@ class Dataset(models.Model):
     latitudinal_extent_max: models.FloatField = models.FloatField(null=True, blank=True)
     longitudinal_extent_min: models.FloatField = models.FloatField(null=True, blank=True)
     longitudinal_extent_max: models.FloatField = models.FloatField(null=True, blank=True)
+
+    @classmethod
+    def latest_versions(cls) -> models.QuerySet["Dataset"]:
+        """Only the most recent version of each dataset (by zenodo_concept_id)."""
+        latest_per_concept = (
+            cls.objects.filter(zenodo_concept_id=OuterRef("zenodo_concept_id"))
+            .order_by("-zenodo_record_id")
+            .values("zenodo_record_id")[:1]
+        )
+
+        return cls.objects.filter(zenodo_record_id=Subquery(latest_per_concept))
 
     def __str__(self):
         return self.title
