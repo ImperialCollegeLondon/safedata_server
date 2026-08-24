@@ -256,8 +256,7 @@ class SpatialSearchView(DatasetSearchView):
     standalone new locations with their own recorded geometry (using
     Locations.geom_local/geom_wgs84). A dataset location with no geometry
     recorded at all (e.g. an unresolved new location with no wkt_wgs84)
-    cannot match a spatial search, per the same behaviour as the legacy
-    safedata package.
+    cannot match a spatial search.
 
     Buffered (distance) searches reproject into the deployment's local
     projected CRS (settings.GAZETTEER_LOCAL_EPSG) before buffering, since
