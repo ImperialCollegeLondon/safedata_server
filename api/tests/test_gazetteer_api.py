@@ -13,41 +13,6 @@ from rest_framework.test import APIClient
 
 from gazetteer.models import Gazetteer, GazetteerAlias
 
-# --- Shared fixtures ---------------------------------------------------------
-
-@pytest.fixture
-def sample_gazetteer(db):
-    Gazetteer.objects.create(
-        location="River Camp A",
-        geom_wgs84="POINT (117.6194 4.7461)",
-        geom_local="POINT (568690.28 524629.41)",
-    )
-    Gazetteer.objects.create(
-        location="River Camp B",
-        geom_wgs84="POINT (117.6231 4.7502)",
-        geom_local="POINT (569100.22 525083.00)",
-    )
-
-
-@pytest.fixture
-def sample_aliases(db, sample_gazetteer):
-    camp_a = Gazetteer.objects.get(location="River Camp A")
-    GazetteerAlias.objects.create(location=camp_a, alias="Camp A Alt Name")
-    GazetteerAlias.objects.create(location=camp_a, alias="1")
-
-
-@pytest.fixture
-def api_client_with_token(db):
-    user = User.objects.create_user(username="uploader", password="testpass123")
-    token = Token.objects.create(user=user)
-
-    client = APIClient()
-    client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
-    return client
-
-
-# --- Sample upload payloads --------------------------------------------------
-
 VALID_GEOJSON = b"""{
     "type": "FeatureCollection",
     "features": [
