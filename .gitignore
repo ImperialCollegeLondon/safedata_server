@@ -1,0 +1,13 @@
+.env
+.venv
+db.sqlite3
+.python-version
+__pycache__/
+*.pyc
+aliases_download.csv
+datasets/test_data/
+gazetteer/test_data/
+index.json
+record.json
+.DS_Store
+.vscode/
