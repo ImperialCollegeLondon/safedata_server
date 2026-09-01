@@ -2,6 +2,8 @@
 and each of the six search endpoints."""
 
 import pytest
+from django.urls import reverse
+
 from datasets.models import (
     Dataset,
     DatasetAuthors,
@@ -10,7 +12,6 @@ from datasets.models import (
     Locations,
     Taxa,
 )
-from django.urls import reverse
 from gazetteer.models import Gazetteer
 
 # --- Shared fixtures ---------------------------------------------------------

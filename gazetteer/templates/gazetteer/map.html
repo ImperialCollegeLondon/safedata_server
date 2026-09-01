@@ -61,7 +61,7 @@
             };
         }
 
-        fetch("{% url 'gazetteer:download' %}")
+        fetch("{% url 'api:gazetteer-download' %}")
             .then((response) => response.json())
             .then((geojson) => {
                 geoJsonLayer = L.geoJSON(geojson, {
