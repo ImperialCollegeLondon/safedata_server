@@ -92,6 +92,15 @@
         </tbody>
     </table>
 
+    <h2>Files</h2>
+    <ul>
+        {% for file in dataset.files.all %}
+        <li>{{ file.filename }}</li>
+        {% empty %}
+        <li>No files recorded.</li>
+        {% endfor %}
+    </ul>
+
     <h2>Taxa</h2>
     <p>{{ taxa_gbif_count }} GBIF taxa, {{ taxa_sequence_count }} sequence-derived taxa.</p>
 </body>

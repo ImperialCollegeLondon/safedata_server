@@ -22,7 +22,7 @@ def _serialize_record(dataset: Dataset) -> dict:
         "zenodo_publication_date": dataset.zenodo_publication_date,
         "title": dataset.title,
         "description": dataset.description,
-        "filename": dataset.filename,
+        "files": [f.filename for f in dataset.files.all()],
         "access": dataset.access,
         "embargo_date": dataset.embargo_date,
         "access_conditions": dataset.access_conditions,

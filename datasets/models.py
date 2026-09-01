@@ -21,7 +21,6 @@ class Dataset(models.Model):
 
     title: models.CharField = models.CharField(max_length=1000)
     description: models.TextField = models.TextField()
-    filename: models.CharField = models.CharField(max_length=500)
 
     access: models.CharField = models.CharField(max_length=50)
     embargo_date: models.DateField = models.DateField(null=True, blank=True)
@@ -243,3 +242,11 @@ class Locations(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.dataset_id})"
+
+
+class DatasetFiles(models.Model):
+    dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name="files")
+    filename = models.CharField(max_length=500)
+
+    def __str__(self):
+        return self.filename

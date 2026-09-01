@@ -8,12 +8,14 @@ from typing import Any, cast
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import transaction
+
 from gazetteer.models import Gazetteer, GazetteerAlias
 
 from .models import (
     Dataset,
     DatasetAuthors,
     DatasetFields,
+    DatasetFiles,
     DatasetFunders,
     DatasetKeywords,
     DatasetPermits,
@@ -72,7 +74,6 @@ def _dataset_fields_from_json(data: dict[str, Any]) -> dict[str, Any]:
         ),
         "title": _require(data, "title", context="dataset"),
         "description": data.get("description") or "",
-        "filename": data.get("filename") or "",
         "access": _require(data, "access", context="dataset"),
         "embargo_date": _parse_date(data.get("embargo_date")),
         "access_conditions": data.get("access_conditions"),
@@ -113,6 +114,7 @@ def _clear_dataset_children(dataset: Dataset) -> None:
     DatasetWorksheets.objects.filter(dataset=dataset).delete()  # cascades to DatasetFields
     Taxa.objects.filter(dataset=dataset).delete()
     Locations.objects.filter(dataset=dataset).delete()
+    dataset.files.all().delete()
 
 
 def _ingest_worksheets(dataset: Dataset, worksheets_data: list[dict[str, Any]]) -> None:
@@ -215,6 +217,16 @@ def _ingest_locations(dataset: Dataset, locations_data: list[dict[str, Any]]) ->
         )
 
 
+def _ingest_files(dataset: Dataset, data: dict[str, Any]) -> None:
+    """Create the primary Excel file record for a dataset.
+
+    Todo: update for examples with mutliple files when suitable examples come in.
+    """
+    filename = data.get("filename")
+    if filename:
+        DatasetFiles.objects.create(dataset=dataset, filename=filename)
+
+
 def _resolve_gazetteer_location(dataset: Dataset, name: str) -> Gazetteer | None:
     """Resolve a dataset's location name against the global gazetteer.
 
@@ -301,5 +313,6 @@ def ingest_dataset(data: dict[str, Any]) -> Dataset:
         _ingest_gbif_taxa(dataset, data.get("gbif_taxa") or [])
         _ingest_sequenced_taxa(dataset, data.get("sequenced_taxa") or {})
         _ingest_locations(dataset, data.get("locations") or [])
+        _ingest_files(dataset, data)
 
     return dataset

@@ -39,7 +39,6 @@ def dataset_a(db, sample_gazetteer):
         zenodo_publication_date="2020-01-01",
         title="Ant diversity in old-growth forest",
         description="A study of forest ants.",
-        filename="ants.xlsx",
         access="Open",
         validator_version="3.1.1",
         temporal_extent_start="2014-01-01",
@@ -81,7 +80,6 @@ def dataset_b(db, sample_gazetteer):
         zenodo_publication_date="2021-06-01",
         title="Soil carbon flux measurements",
         description="Carbon dioxide flux from soil respiration.",
-        filename="carbon.xlsx",
         access="Open",
         validator_version="3.1.1",
         temporal_extent_start="2018-01-01",
@@ -112,7 +110,6 @@ class TestSharedRestriction:
             zenodo_publication_date="2020-01-01",
             title="Outdated version",
             description="",
-            filename="a.xlsx",
             access="Open",
             validator_version="3.1.1",
         )
@@ -122,7 +119,6 @@ class TestSharedRestriction:
             zenodo_publication_date="2021-01-01",
             title="Newer version",
             description="",
-            filename="a.xlsx",
             access="Open",
             validator_version="3.1.1",
         )

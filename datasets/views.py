@@ -42,7 +42,7 @@ def dataset_detail(request, pk):
     """Full metadata for one dataset."""
     dataset = get_object_or_404(
         Dataset.objects.prefetch_related(
-            "authors", "funders", "permits", "keywords", "worksheets__fields", "projects"
+            "authors", "funders", "permits", "keywords", "worksheets__fields", "projects", "files"
         ),
         pk=pk,
     )
