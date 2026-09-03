@@ -9,10 +9,31 @@ The response is a clean reconstruction from our normalized tables, not a
 replica of the original safedata_validator export.
 """
 
-from datasets.models import Dataset
 from django.shortcuts import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from datasets.models import Dataset
+
+from datetime import date as date_type
+
+from django.http import Http404
+
+
+def _serialize_location(location) -> dict:
+    """Return the public representation of a normalized location.
+
+    Location geometry and gazetteer entries are optional, so this keeps the
+    endpoint safe for records containing only one of those representations.
+    """
+    gazetteer = location.gazetteer_location
+    geometry = location.geom_wgs84
+    return {
+        "name": location.name,
+        "new_location": location.new_location,
+        "gazetteer_location": gazetteer.location if gazetteer else None,
+        "wkt_wgs84": geometry.wkt if geometry else None,
+    }
 
 
 def _serialize_record(dataset: Dataset) -> dict:
@@ -104,15 +125,8 @@ def _serialize_record(dataset: Dataset) -> dict:
             for t in dataset.taxa.all()
         ],
         "locations": [
-            {
-                "name": loc.name,
-                "new_location": loc.new_location,
-                "gazetteer_location": (
-                    loc.gazetteer_location.location if loc.gazetteer_location else None
-                ),
-                "wkt_wgs84": loc.geom_wgs84.wkt if loc.geom_wgs84 else None,
-            }
-            for loc in dataset.locations.all()
+            _serialize_location(location)
+            for location in dataset.locations.all()
         ],
     }
 
@@ -138,3 +152,4 @@ class RecordMetadataView(APIView):
             zenodo_record_id=zenodo_record_id,
         )
         return Response(_serialize_record(dataset))
+

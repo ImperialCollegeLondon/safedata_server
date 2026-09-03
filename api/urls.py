@@ -22,6 +22,11 @@ from api.views.search import (
     TaxaSearchView,
     TextSearchView,
 )
+from api.views.taxa import (
+    GlobalGbifTaxonCoverageView,
+    GlobalSequenceTaxonCoverageView,
+    RecordTaxaView,
+)
 
 app_name = "api"
  
@@ -46,5 +51,9 @@ urlpatterns = [
     path("datasets/index/hash/", dataset_index_hash, name="datasets-index-hash"),
     # URL for retrieving metadata for a specific Zenodo record:
     path("records/<int:zenodo_record_id>/", RecordMetadataView.as_view(), name="record-detail"),
+    # Taxa coverage endpoints:
+    path("taxon_coverage/gbif/", GlobalGbifTaxonCoverageView.as_view(), name="taxon-coverage-gbif"),
+    path("taxon_coverage/sequence/", GlobalSequenceTaxonCoverageView.as_view(), name="taxon-coverage-sequence"),
+    path("records/<int:zenodo_record_id>/taxa/", RecordTaxaView.as_view(), name="record-taxa"),
 ]
  
