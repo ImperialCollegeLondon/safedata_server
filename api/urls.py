@@ -13,7 +13,7 @@ from api.views.gazetteer import (
     gazetteer_download,
     gazetteer_hash,
 )
-from api.views.records import RecordMetadataView
+from api.views.records import ConceptVersionsView, RecordMetadataView
 from api.views.search import (
     AuthorSearchView,
     DateSearchView,
@@ -51,6 +51,7 @@ urlpatterns = [
     path("datasets/index/hash/", dataset_index_hash, name="datasets-index-hash"),
     # URL for retrieving metadata for a specific Zenodo record:
     path("records/<int:zenodo_record_id>/", RecordMetadataView.as_view(), name="record-detail"),
+    path("concepts/<int:zenodo_concept_id>/", ConceptVersionsView.as_view(), name="concept-versions"),
     # Taxa coverage endpoints:
     path("taxon_coverage/gbif/", GlobalGbifTaxonCoverageView.as_view(), name="taxon-coverage-gbif"),
     path("taxon_coverage/sequence/", GlobalSequenceTaxonCoverageView.as_view(), name="taxon-coverage-sequence"),

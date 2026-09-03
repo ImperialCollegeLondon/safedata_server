@@ -153,3 +153,54 @@ class RecordMetadataView(APIView):
         )
         return Response(_serialize_record(dataset))
 
+
+def _version_status(dataset: Dataset, *, is_most_recent: bool) -> str:
+    """Match the R package's availability convention: "*" for the most
+    recent available version, "o" for older available versions, "x" for
+    anything embargoed or otherwise inaccessible. ("!" - a locally
+    inserted private copy - is a client-side-only R concept and has no
+    server-side equivalent.)
+    """
+    is_embargoed = dataset.embargo_date is not None and dataset.embargo_date > date_type.today()
+    is_available = dataset.access == "Open" and not is_embargoed
+
+    if not is_available:
+        return "x"
+    return "*" if is_most_recent else "o"
+
+
+class ConceptVersionsView(APIView):
+    """All record versions sharing one dataset concept, with their
+    availability status - the show_concepts() equivalent.
+
+    GET /api/concepts/<zenodo_concept_id>/
+    """
+
+    def get(self, request, zenodo_concept_id, *args, **kwargs):
+        versions = Dataset.objects.filter(
+            zenodo_concept_id=zenodo_concept_id
+        ).order_by("-zenodo_record_id")
+
+        if not versions.exists():
+            raise Http404(f"No dataset found with zenodo_concept_id={zenodo_concept_id}.")
+
+        most_recent_id = versions.first().zenodo_record_id
+
+        return Response(
+            {
+                "zenodo_concept_id": zenodo_concept_id,
+                "title": versions.first().title,
+                "versions": [
+                    {
+                        "zenodo_record_id": v.zenodo_record_id,
+                        "published": v.zenodo_publication_date,
+                        "embargo_date": v.embargo_date,
+                        "access": v.access,
+                        "status": _version_status(
+                            v, is_most_recent=v.zenodo_record_id == most_recent_id
+                        ),
+                    }
+                    for v in versions
+                ],
+            }
+        )
