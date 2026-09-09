@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}API Reference — safedata_server{% endblock %}
+
+{% block extra_style %}
+h2 { border-bottom: 1px solid #eee; padding-bottom: 6px; margin-top: 2.5rem; }
+h3 { margin-top: 1.5rem; }
+table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid #eee; font-size: 14px; vertical-align: top; }
+th { color: #666; font-weight: normal; }
+code { background: #f4f4f4; padding: 1px 5px; border-radius: 3px; font-size: 13px; }
+pre {
+    background: #1e1e1e;
+    color: #e8e8e8;
+    padding: 14px 16px;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.5;
+}
+pre code { background: none; padding: 0; color: inherit; }
+.note {
+    background: #fff8e1;
+    border-left: 3px solid #f0c419;
+    padding: 10px 14px;
+    margin: 1rem 0;
+    font-size: 14px;
+}
+{% endblock %}
+
+{% block content %}
+<h1>API Reference</h1>
+<p>
+    All endpoints below are under <code>/api/</code>. Upload endpoints require
+    a token; everything else (downloads, search, browsing) is public.
+</p>
+
+<h2>Authentication</h2>
+<p>Add this header to any upload request:</p>
+<pre><code>Authorization: Token &lt;your-token-here&gt;</code></pre>
+<p>
+    Generate a token for your account with
+    <code>uv run python manage.py drf_create_token &lt;username&gt;</code>.
+</p>
+
+<h2>Uploading</h2>
+<pre><code># Gazetteer (GeoJSON)
+curl -X POST http://127.0.0.1:8000/api/gazetteer/upload/ \
+  -H "Authorization: Token &lt;token&gt;" \
+  -F "file=@gazetteer.geojson"
+
+# Location aliases (CSV)
+curl -X POST http://127.0.0.1:8000/api/gazetteer/aliases/upload/ \
+  -H "Authorization: Token &lt;token&gt;" \
+  -F "file=@location_aliases.csv"
+
+# Dataset (safedata_validator JSON export)
+curl -X POST http://127.0.0.1:8000/api/datasets/upload/ \
+  -H "Authorization: Token &lt;token&gt;" \
+  -F "file=@dataset.json"</code></pre>
+<p>
+    Re-uploading a dataset with a <code>zenodo_record_id</code> that already
+    exists updates that dataset in place (treated as a correction) rather
+    than creating a duplicate. Uploads are all-or-nothing: if any part of
+    a file fails, nothing from it is saved.
+</p>
+
+<h2>Downloading</h2>
+<p>No authentication required.</p>
+<table>
+    <thead><tr><th>Endpoint</th><th>Returns</th></tr></thead>
+    <tbody>
+        <tr><td><code>GET /api/gazetteer/download/</code></td><td>Current gazetteer as GeoJSON</td></tr>
+        <tr><td><code>GET /api/gazetteer/hash/</code></td><td>MD5 hash of the current gazetteer file</td></tr>
+        <tr><td><code>GET /api/gazetteer/aliases/download/</code></td><td>Current aliases as CSV</td></tr>
+        <tr><td><code>GET /api/gazetteer/aliases/hash/</code></td><td>MD5 hash of the current aliases file</td></tr>
+        <tr><td><code>GET /api/datasets/index/download/</code></td><td>Index of all published datasets (latest version of each)</td></tr>
+        <tr><td><code>GET /api/datasets/index/hash/</code></td><td>MD5 hash of the current index</td></tr>
+    </tbody>
+</table>
+<p>
+    Downstream tools should check the hash endpoint before re-downloading a
+    file, to avoid unnecessary transfers.
+</p>
+
+<h2>Searching datasets</h2>
+<p>
+    Six search endpoints, matching the query types supported by the
+    <a href="https://imperialcollegelondon.github.io/safedata/reference/index.html#data-discovery">safedata R package</a>.
+    All accept <code>GET</code> requests with query parameters, and all
+    support two shared parameters:
+</p>
+<ul>
+    <li>
+        <code>ids</code> — restrict results to a specific set of
+        <code>zenodo_record_id</code>s (repeatable: <code>?ids=1&ids=2</code>).
+        This is how searches can be chained together (an "AND"-like combination).
+    </li>
+    <li>
+        <code>most_recent</code> — restrict results to only the latest
+        version of each dataset (presence alone means true: <code>?most_recent</code>).
+    </li>
+</ul>
+<table>
+    <thead><tr><th>Endpoint</th><th>Query params</th><th>Example</th></tr></thead>
+    <tbody>
+        <tr><td><code>/api/search/text/</code></td><td><code>text</code></td><td><code>?text=forest</code></td></tr>
+        <tr><td><code>/api/search/authors/</code></td><td><code>name</code></td><td><code>?name=Ewers</code></td></tr>
+        <tr><td><code>/api/search/dates/</code></td><td><code>date</code>, <code>match_type</code> (<code>intersect</code>/<code>contain</code>/<code>within</code>)</td><td><code>?date=2014-06-01,2015-06-01&match_type=contain</code></td></tr>
+        <tr><td><code>/api/search/fields/</code></td><td><code>text</code>, <code>field_type</code></td><td><code>?field_type=numeric</code></td></tr>
+        <tr><td><code>/api/search/taxa/</code></td><td><code>name</code>, <code>rank</code>, <code>taxon_id</code>, <code>source</code> (<code>gbif</code>/<code>sequence</code>)</td><td><code>?name=Formicidae</code></td></tr>
+        <tr><td><code>/api/search/spatial/</code></td><td><code>wkt</code> or <code>location</code>, optional <code>distance</code> (metres)</td><td><code>?location=A_1&distance=2500</code></td></tr>
+    </tbody>
+</table>
+<p>
+    Combining an "OR" across two searches is done by the client — issue
+    two searches and union the results; combining an "AND" is done by
+    restricting the second search's <code>ids</code> to the first
+    search's result set.
+</p>
+
+<h2>Record metadata and taxonomy</h2>
+<table>
+    <thead><tr><th>Endpoint</th><th>Returns</th></tr></thead>
+    <tbody>
+        <tr><td><code>GET /api/records/&lt;zenodo_record_id&gt;/</code></td><td>Full metadata for one dataset (authors, worksheets, fields, taxa, locations)</td></tr>
+        <tr><td><code>GET /api/records/&lt;zenodo_record_id&gt;/taxa/</code></td><td>That dataset's own taxon list, nested where possible. Source type (GBIF/sequence) is auto-detected.</td></tr>
+        <tr><td><code>GET /api/concepts/&lt;zenodo_concept_id&gt;/</code></td><td>Every published version of a dataset, with availability status (<code>*</code> = current, <code>o</code> = older, <code>x</code> = embargoed/restricted)</td></tr>
+        <tr><td><code>GET /api/taxon_coverage/gbif/</code></td><td>The complete curated GBIF taxonomic tree across every dataset's latest version</td></tr>
+        <tr><td><code>GET /api/taxon_coverage/sequence/</code></td><td>The sequence-derived taxonomic tree across every dataset's latest version, merged by matching taxonomic rank/name</td></tr>
+    </tbody>
+</table>
+
+<div class="note">
+    <strong>A note on taxon identity.</strong> GBIF taxa with a positive
+    <code>taxon_id</code> are globally comparable — the same ID always
+    means the same real species, so these are deduplicated across
+    datasets. GBIF taxa with <code>taxon_id: -1</code> represent
+    unmatched/"user"-supplied taxa (e.g. field morphospecies with no
+    confirmed species-level match) and are <strong>never</strong>
+    deduplicated, since <code>-1</code> carries no identity at all —
+    they're only distinguishable by name. Sequence-derived taxa have no
+    stable ID of their own; they're merged across datasets by matching
+    their full ancestor name path instead.
+</div>
+{% endblock %}

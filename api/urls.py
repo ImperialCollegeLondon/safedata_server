@@ -5,6 +5,7 @@ from api.views.datasets import (
     dataset_index_download,
     dataset_index_hash,
 )
+from api.views.docs import api_docs
 from api.views.gazetteer import (
     GazetteerAliasUploadView,
     GazetteerUploadView,
@@ -31,6 +32,7 @@ from api.views.taxa import (
 app_name = "api"
  
 urlpatterns = [
+    path("docs/", api_docs, name="docs"),
     # URLs for searching datasets and gazetteer locations:
     path("search/text/", TextSearchView.as_view(), name="search-text"),
     path("search/authors/", AuthorSearchView.as_view(), name="search-authors"),
