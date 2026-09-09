@@ -69,7 +69,7 @@ a:hover { text-decoration: underline; }
     <tbody>
         {% for dataset in datasets %}
         <tr>
-            <td><a href="{% url 'datasets:detail' dataset.pk %}">{{ dataset.title }}</a></td>
+            <td><a href="{% url 'datasets:detail' dataset.zenodo_record_id %}">{{ dataset.title }}</a></td>
             <td><span class="access-badge">{{ dataset.access }}</span></td>
             <td>{{ dataset.zenodo_record_id }}</td>
             <td>{{ dataset.zenodo_publication_date|default:"—" }}</td>

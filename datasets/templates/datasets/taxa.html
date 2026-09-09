@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block title %}Browse Taxa — safedata_server{% endblock %}
+
+{% block extra_style %}
+.toggle { margin-bottom: 1.5rem; }
+.toggle button {
+    padding: 6px 16px;
+    font-size: 14px;
+    border: 1px solid #1a5fb4;
+    background: white;
+    color: #1a5fb4;
+    cursor: pointer;
+}
+.toggle button:first-child { border-radius: 4px 0 0 4px; }
+.toggle button:last-child { border-radius: 0 4px 4px 0; }
+.toggle button.active { background: #3388ff; color: white; }
+input[type="text"] {
+    padding: 6px 10px;
+    font-size: 14px;
+    width: 320px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+.result-count { color: #666; font-size: 13px; margin-bottom: 1rem; }
+table { border-collapse: collapse; width: 100%; }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid #eee; font-size: 14px; }
+th { color: #666; font-weight: normal; }
+tr:hover { background: #f9f9f9; }
+a { color: #1a5fb4; text-decoration: none; }
+a:hover { text-decoration: underline; }
+.record-links a { margin-right: 6px; font-size: 12px; }
+.rank-tag { font-size: 11px; color: #888; }
+
+.tree-root, .tree-root ul { list-style: none; margin: 0; padding-left: 0; }
+.tree-root ul { padding-left: 22px; }
+.tree-root ul.collapsed { display: none; }
+.node-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 4px;
+    cursor: pointer;
+    border-bottom: 1px solid #f2f2f2;
+    font-size: 14px;
+}
+.node-row:hover { background: #f9f9f9; }
+.toggle-icon { width: 14px; color: #888; font-size: 11px; }
+.toggle-icon.leaf { color: #ccc; }
+.taxon-name { font-weight: 500; }
+.child-count { color: #999; font-size: 12px; }
+{% endblock %}
+
+{% block content %}
+<h1>Browse Taxa</h1>
+
+<div class="toggle">
+    <button id="btn-gbif" class="active">GBIF</button>
+    <button id="btn-sequence">Sequence</button>
+</div>
+
+<input type="text" id="search-input" placeholder="Filter by name..." />
+<div class="result-count" id="result-count"></div>
+
+<div id="results-container"></div>
+
+<script>
+    const GBIF_URL = "{% url 'api:taxon-coverage-gbif' %}";
+    const SEQUENCE_URL = "{% url 'api:taxon-coverage-sequence' %}";
+
+    let allTaxa = [];
+    let currentSource = "gbif";
+
+    function datasetLink(recordId) {
+        return `<a href="/datasets/${recordId}/">${recordId}</a>`;
+    }
+
+    function datasetLinksHtml(taxon) {
+        return taxon.zenodo_record_ids.map(datasetLink).join(" ");
+    }
+
+    // --- Flat rendering (used for search results and the Sequence view) ---
+
+    function renderFlat(taxa) {
+        const container = document.getElementById("results-container");
+        container.innerHTML = `
+            <table>
+                <thead>
+                    <tr><th>Name</th><th>Rank</th><th>Datasets</th></tr>
+                </thead>
+                <tbody>
+                    ${taxa.map((t) => `
+                        <tr>
+                            <td>${t.taxon_name}</td>
+                            <td>${t.taxon_rank || "—"}</td>
+                            <td class="record-links">${datasetLinksHtml(t)}</td>
+                        </tr>
+                    `).join("")}
+                </tbody>
+            </table>
+        `;
+        document.getElementById("result-count").textContent = `${taxa.length} taxa`;
+    }
+
+    // --- Tree building and rendering (GBIF only) ---
+
+    function buildTree(taxa) {
+        const byId = new Map();
+        taxa.forEach((t) => byId.set(t.taxon_id, { ...t, children: [] }));
+
+        const roots = [];
+        byId.forEach((node) => {
+            const parent = node.parent_id != null ? byId.get(node.parent_id) : null;
+            if (parent) {
+                parent.children.push(node);
+            } else {
+                roots.push(node);
+            }
+        });
+
+        function sortRecursive(nodes) {
+            nodes.sort((a, b) => a.taxon_name.localeCompare(b.taxon_name));
+            nodes.forEach((n) => sortRecursive(n.children));
+        }
+        sortRecursive(roots);
+
+        return roots;
+    }
+
+    function countDescendants(node) {
+        return node.children.reduce((sum, c) => sum + 1 + countDescendants(c), 0);
+    }
+
+    // depth 0 (kingdom) starts expanded; everything deeper starts collapsed
+    function nodeHtml(node, depth) {
+        const hasChildren = node.children.length > 0;
+        const startsCollapsed = depth >= 1;
+        const childCount = hasChildren ? countDescendants(node) : 0;
+
+        const toggle = hasChildren
+            ? `<span class="toggle-icon">${startsCollapsed ? "▶" : "▼"}</span>`
+            : `<span class="toggle-icon leaf">•</span>`;
+
+        const childCountLabel = hasChildren
+            ? `<span class="child-count">(${childCount})</span>`
+            : "";
+
+        const childrenHtml = hasChildren
+            ? `<ul class="${startsCollapsed ? "collapsed" : ""}">
+                   ${node.children.map((c) => nodeHtml(c, depth + 1)).join("")}
+               </ul>`
+            : "";
+
+        return `
+            <li>
+                <div class="node-row" ${hasChildren ? 'onclick="toggleNode(this)"' : ""}>
+                    ${toggle}
+                    <span class="taxon-name">${node.taxon_name}</span>
+                    <span class="rank-tag">${node.taxon_rank || ""}</span>
+                    ${childCountLabel}
+                    <span class="record-links">${datasetLinksHtml(node)}</span>
+                </div>
+                ${childrenHtml}
+            </li>
+        `;
+    }
+
+    function renderTree(roots) {
+        const container = document.getElementById("results-container");
+        container.innerHTML = `<ul class="tree-root">${roots.map((r) => nodeHtml(r, 0)).join("")}</ul>`;
+
+        let total = 0;
+        roots.forEach((r) => (total += 1 + countDescendants(r)));
+        document.getElementById("result-count").textContent =
+            `${total} taxa — click a row to expand/collapse`;
+    }
+
+    function toggleNode(rowEl) {
+        const li = rowEl.parentElement;
+        const childUl = li.querySelector(":scope > ul");
+        const icon = rowEl.querySelector(".toggle-icon");
+        if (!childUl) return;
+
+        const isCollapsed = childUl.classList.toggle("collapsed");
+        icon.textContent = isCollapsed ? "▶" : "▼";
+    }
+
+    // --- Filtering / source switching ---
+
+    function applyFilter(query) {
+        const normalized = query.trim().toLowerCase();
+
+        if (normalized === "") {
+            renderTree(buildTree(allTaxa));
+            return;
+        }
+
+        const filtered = allTaxa.filter((t) =>
+            t.taxon_name.toLowerCase().includes(normalized)
+        );
+        renderFlat(filtered);
+    }
+
+    function loadSource(source) {
+        currentSource = source;
+        const url = source === "gbif" ? GBIF_URL : SEQUENCE_URL;
+
+        document.getElementById("btn-gbif").classList.toggle("active", source === "gbif");
+        document.getElementById("btn-sequence").classList.toggle("active", source === "sequence");
+        document.getElementById("result-count").textContent = "Loading...";
+
+        fetch(url)
+            .then((response) => response.json())
+            .then((data) => {
+                allTaxa = data.taxa;
+                applyFilter(document.getElementById("search-input").value);
+            });
+    }
+
+    document.getElementById("btn-gbif").addEventListener("click", () => loadSource("gbif"));
+    document.getElementById("btn-sequence").addEventListener("click", () => loadSource("sequence"));
+    document.getElementById("search-input").addEventListener("input", (event) => {
+        applyFilter(event.target.value);
+    });
+
+    loadSource("gbif");
+</script>
+{% endblock %}

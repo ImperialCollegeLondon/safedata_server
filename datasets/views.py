@@ -58,13 +58,13 @@ def dataset_list(request):
     return render(request, "datasets/list.html", context)
 
 
-def dataset_detail(request, pk):
+def dataset_detail(request, zenodo_record_id):
     """Full metadata for one dataset."""
     dataset = get_object_or_404(
         Dataset.objects.prefetch_related(
             "authors", "funders", "permits", "keywords", "worksheets__fields", "projects", "files"
         ),
-        pk=pk,
+        zenodo_record_id=zenodo_record_id,
     )
 
     taxa_gbif_count = dataset.taxa.filter(source="gbif").count()
@@ -81,3 +81,10 @@ def dataset_detail(request, pk):
         "locations_resolved_count": locations_resolved_count,
     }
     return render(request, "datasets/detail.html", context)
+
+
+def taxa_browse(request):
+    """Browse the global taxon coverage across all datasets - GBIF and
+    sequence-derived taxa shown separately (per taxon_coverage endpoints),
+    since the two can't be meaningfully combined."""
+    return render(request, "datasets/taxa.html")

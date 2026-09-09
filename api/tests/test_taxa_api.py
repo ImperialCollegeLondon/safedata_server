@@ -42,12 +42,14 @@ class TestGlobalSequenceCoverage:
     ):
         response = client.get(reverse("api:taxon-coverage-sequence"))
         body = response.json()
- 
+
         assert body["count"] == 1
         entry = body["taxa"][0]
         assert entry["taxon_name"] == "Fungi"
+        assert entry["taxon_rank"] == "kingdom"
+        assert entry["parent_id"] is None
         assert sorted(entry["zenodo_record_ids"]) == [7000003, 7000004]
- 
+
     def test_only_includes_sequence_source(self, client, dataset_with_gbif_taxa):
         response = client.get(reverse("api:taxon-coverage-sequence"))
         body = response.json()
