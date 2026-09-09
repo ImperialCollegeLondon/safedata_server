@@ -1,9 +1,37 @@
+import json
 
-
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.db.models import Q
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 
+from .ingest import DatasetIngestError, ingest_dataset
 from .models import Dataset
+
+
+@login_required
+def dataset_upload_page(request):
+    """A simple browser-based upload page for a dataset JSON export,
+    alongside the existing token-authenticated API endpoint."""
+    if request.method == "POST":
+        uploaded_file = request.FILES.get("file")
+
+        if uploaded_file is None:
+            messages.error(request, "No dataset file was provided.")
+            return redirect("datasets:upload-page")
+
+        try:
+            data = json.load(uploaded_file)
+            dataset = ingest_dataset(data)
+        except (json.JSONDecodeError, DatasetIngestError) as exc:
+            messages.error(request, f"Dataset upload failed: {exc}")
+            return redirect("datasets:upload-page")
+
+        messages.success(request, f'Dataset "{dataset.title}" uploaded successfully.')
+        return redirect("datasets:upload-page")
+
+    return render(request, "datasets/upload.html")
+
 
 
 def dataset_list(request):

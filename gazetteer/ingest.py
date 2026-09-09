@@ -165,13 +165,15 @@ def ingest_gazetteer_aliases_csv(csv_file: TextIOBase) -> None:
             f"CSV must have columns {expected_columns}, got {reader.fieldnames}."
         )
 
-    row_count = 0
-    for row in reader:
-        ingest_gazetteer_alias_row(row)
-        row_count += 1
+    with transaction.atomic():
 
-    if row_count == 0:
-        raise GazetteerAliasIngestError("CSV file contains no data rows.")
+        row_count = 0
+        for row in reader:
+            ingest_gazetteer_alias_row(row)
+            row_count += 1
+
+        if row_count == 0:
+            raise GazetteerAliasIngestError("CSV file contains no data rows.")
 
 
 def _get_alias_field(row: dict[str, str], field: str) -> str:
