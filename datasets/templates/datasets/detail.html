@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}{{ dataset.title }} — safedata_server{% endblock %}
+
+{% block extra_style %}
+main { max-width: 900px; }
+.meta { color: #666; font-size: 14px; margin-bottom: 1.5rem; }
+h2 { font-size: 16px; color: #444; border-bottom: 1px solid #eee; padding-bottom: 4px; margin-top: 2rem; }
+p.description { line-height: 1.5; }
+ul { padding-left: 1.2rem; }
+li { margin-bottom: 4px; }
+table { border-collapse: collapse; width: 100%; margin-top: 0.5rem; }
+th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid #eee; font-size: 14px; }
+th { color: #666; font-weight: normal; }
+a.back { color: #1a5fb4; text-decoration: none; font-size: 14px; }
+.stat { display: inline-block; margin-right: 1.5rem; font-size: 14px; }
+.stat strong { display: block; font-size: 20px; }
+{% endblock %}
+
+{% block content %}
+<a class="back" href="{% url 'datasets:list' %}">&larr; Back to datasets</a>
+
+<h1>{{ dataset.title }}</h1>
+<div class="meta">
+    {{ dataset.access }} &middot;
+    Zenodo record {{ dataset.zenodo_record_id }} (concept {{ dataset.zenodo_concept_id }}) &middot;
+    Published {{ dataset.zenodo_publication_date|default:"—" }}
+</div>
+
+<p class="description">{{ dataset.description }}</p>
+
+<div>
+    <div class="stat"><strong>{{ dataset.worksheets.count }}</strong>worksheets</div>
+    <div class="stat"><strong>{{ taxa_gbif_count|add:taxa_sequence_count }}</strong>taxa</div>
+    <div class="stat"><strong>{{ locations_resolved_count }}/{{ locations_total_count }}</strong>locations resolved</div>
+</div>
+
+<h2>Authors</h2>
+<ul>
+    {% for author in dataset.authors.all %}
+    <li>{{ author.name }}{% if author.affiliation %} — {{ author.affiliation }}{% endif %}</li>
+    {% empty %}
+    <li>No authors recorded.</li>
+    {% endfor %}
+</ul>
+
+<h2>Keywords</h2>
+<ul>
+    {% for keyword in dataset.keywords.all %}
+    <li>{{ keyword.keyword }}</li>
+    {% empty %}
+    <li>No keywords recorded.</li>
+    {% endfor %}
+</ul>
+
+<h2>Funders</h2>
+<ul>
+    {% for funder in dataset.funders.all %}
+    <li>{{ funder.body }}{% if funder.ref %} ({{ funder.ref }}){% endif %}</li>
+    {% empty %}
+    <li>No funders recorded.</li>
+    {% endfor %}
+</ul>
+
+<h2>Permits</h2>
+<ul>
+    {% for permit in dataset.permits.all %}
+    <li>{{ permit.type }} — {{ permit.authority }} ({{ permit.number }})</li>
+    {% empty %}
+    <li>No permits recorded.</li>
+    {% endfor %}
+</ul>
+
+<h2>Worksheets</h2>
+<table>
+    <thead>
+        <tr><th>Name</th><th>Title</th><th>Fields</th><th>Rows</th></tr>
+    </thead>
+    <tbody>
+        {% for worksheet in dataset.worksheets.all %}
+        <tr>
+            <td>{{ worksheet.name }}</td>
+            <td>{{ worksheet.title|default:"—" }}</td>
+            <td>{{ worksheet.fields.count }}</td>
+            <td>{{ worksheet.n_data_row|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4">No worksheets recorded.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h2>Files</h2>
+<ul>
+    {% for file in dataset.files.all %}
+    <li>{{ file.filename }}</li>
+    {% empty %}
+    <li>No files recorded.</li>
+    {% endfor %}
+</ul>
+
+<h2>Taxa</h2>
+<p>{{ taxa_gbif_count }} GBIF taxa, {{ taxa_sequence_count }} sequence-derived taxa.</p>
+{% endblock %}

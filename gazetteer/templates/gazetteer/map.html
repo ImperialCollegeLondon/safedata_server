@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Gazetteer Map — safedata_server{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+{% endblock %}
+
+{% block extra_style %}
+html, body { height: 100%; margin: 0; }
+main { padding: 0; max-width: none; }
+#map { height: calc(100vh - 52px); width: 100%; }
+#search-box {
+    position: absolute;
+    top: 62px;
+    left: 20px;
+    z-index: 1000;
+    background: white;
+    padding: 8px 10px;
+    border-radius: 4px;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+    font-family: sans-serif;
+}
+#search-box input {
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    padding: 4px 8px;
+    font-size: 14px;
+    width: 200px;
+}
+#search-count {
+    font-size: 12px;
+    color: #666;
+    margin-top: 4px;
+}
+{% endblock %}
+
+{% block content %}
+<div id="search-box">
+    <input type="text" id="search-input" placeholder="Search locations..." />
+    <div id="search-count"></div>
+</div>
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    const map = L.map("map").setView([4.75, 117.6], 12);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "&copy; OpenStreetMap contributors",
+        maxZoom: 19,
+    }).addTo(map);
+
+    let geoJsonLayer;
+    const allLayers = [];
+
+    function markerStyle() {
+        return {
+            radius: 5,
+            fillColor: "#3388ff",
+            color: "#1a5fb4",
+            weight: 1,
+            fillOpacity: 0.8,
+        };
+    }
+
+    fetch("{% url 'api:gazetteer-download' %}")
+        .then((response) => response.json())
+        .then((geojson) => {
+            geoJsonLayer = L.geoJSON(geojson, {
+                pointToLayer: (feature, latlng) => L.circleMarker(latlng, markerStyle()),
+                onEachFeature: (feature, layer) => {
+                    if (feature.properties && feature.properties.location) {
+                        layer.bindPopup(feature.properties.location);
+                    }
+                    layer.locationName = (feature.properties.location || "").toLowerCase();
+                    allLayers.push(layer);
+                },
+            }).addTo(map);
+
+            if (geoJsonLayer.getBounds().isValid()) {
+                map.fitBounds(geoJsonLayer.getBounds(), { padding: [20, 20] });
+            }
+
+            document.getElementById("search-count").textContent =
+                `${allLayers.length} locations loaded`;
+        });
+
+    function applySearch(query) {
+        const normalizedQuery = query.trim().toLowerCase();
+        const matchingLayers = [];
+
+        allLayers.forEach((layer) => {
+            const matches = normalizedQuery === "" || layer.locationName.includes(normalizedQuery);
+
+            if (matches) {
+                if (!map.hasLayer(layer)) {
+                    map.addLayer(layer);
+                }
+                matchingLayers.push(layer);
+            } else {
+                if (map.hasLayer(layer)) {
+                    map.removeLayer(layer);
+                }
+            }
+        });
+
+        const countLabel = document.getElementById("search-count");
+        if (normalizedQuery === "") {
+            countLabel.textContent = `${allLayers.length} locations loaded`;
+        } else {
+            countLabel.textContent = `${matchingLayers.length} of ${allLayers.length} matching`;
+        }
+
+        if (matchingLayers.length > 0) {
+            const group = L.featureGroup(matchingLayers);
+            map.fitBounds(group.getBounds(), { padding: [20, 20], maxZoom: 16 });
+        }
+    }
+
+    document.getElementById("search-input").addEventListener("input", (event) => {
+        applySearch(event.target.value);
+    });
+</script>
+{% endblock %}

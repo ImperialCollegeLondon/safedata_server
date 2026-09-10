@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Gazetteer — safedata_server{% endblock %}
+
+{% block extra_style %}
+form { margin-bottom: 2rem; padding: 1rem; border: 1px solid #eee; border-radius: 6px; max-width: 500px; }
+h2 { font-size: 16px; margin-top: 0; }
+input[type="file"] { display: block; margin: 0.75rem 0; }
+button {
+    padding: 6px 14px;
+    border-radius: 4px;
+    border: 1px solid #1a5fb4;
+    background: #3388ff;
+    color: white;
+    cursor: pointer;
+}
+{% endblock %}
+
+{% block content %}
+<h1>Upload Gazetteer Data</h1>
+
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <h2>Gazetteer (GeoJSON)</h2>
+    <input type="hidden" name="upload_type" value="gazetteer" />
+    <input type="file" name="file" accept=".geojson,.json" required />
+    <button type="submit">Upload gazetteer</button>
+</form>
+
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <h2>Location aliases (CSV)</h2>
+    <input type="hidden" name="upload_type" value="aliases" />
+    <input type="file" name="file" accept=".csv" required />
+    <button type="submit">Upload aliases</button>
+</form>
+{% endblock %}
