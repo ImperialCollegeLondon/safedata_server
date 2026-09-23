@@ -14,6 +14,7 @@ from api.views.gazetteer import (
     gazetteer_download,
     gazetteer_hash,
 )
+from api.views.message import ServerMessageView
 from api.views.records import ConceptVersionsView, RecordMetadataView
 from api.views.search import (
     AuthorSearchView,
@@ -33,6 +34,7 @@ app_name = "api"
  
 urlpatterns = [
     path("docs/", api_docs, name="docs"),
+    path("message/", ServerMessageView.as_view(), name="server-message"),
     # URLs for searching datasets and gazetteer locations:
     path("search/text/", TextSearchView.as_view(), name="search-text"),
     path("search/authors/", AuthorSearchView.as_view(), name="search-authors"),
