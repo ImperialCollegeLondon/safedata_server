@@ -49,6 +49,7 @@ def dataset_list(request):
             Q(title__icontains=query)
             | Q(description__icontains=query)
             | Q(keywords__keyword__icontains=query)
+            | Q(authors__name__icontains=query)
         ).distinct()
 
     context = {

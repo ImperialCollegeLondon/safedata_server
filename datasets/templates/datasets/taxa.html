@@ -12,6 +12,14 @@
     color: #1a5fb4;
     cursor: pointer;
 }
+#dataset-filter {
+    padding: 6px 10px;
+    font-size: 14px;
+    margin-bottom: 1rem;
+    margin-right: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
 .toggle button:first-child { border-radius: 4px 0 0 4px; }
 .toggle button:last-child { border-radius: 0 4px 4px 0; }
 .toggle button.active { background: #3388ff; color: white; }
@@ -60,7 +68,11 @@ a:hover { text-decoration: underline; }
     <button id="btn-sequence">Sequence</button>
 </div>
 
-<input type="text" id="search-input" placeholder="Filter by name..." />
+<select id="dataset-filter">
+    <option value="">All datasets</option>
+</select>
+
+<input type="text" id="search-input" placeholder="Filter by taxa name..." />
 <div class="result-count" id="result-count"></div>
 
 <div id="results-container"></div>
@@ -78,6 +90,41 @@ a:hover { text-decoration: underline; }
 
     function datasetLinksHtml(taxon) {
         return taxon.zenodo_record_ids.map(datasetLink).join(" ");
+    }
+
+    // --- Load dataset options for filering ---
+    let selectedDatasetId = "";
+
+    function loadDatasetOptions() {
+        fetch("{% url 'api:datasets-index-download' %}")
+            .then((response) => response.json())
+            .then((datasets) => {
+                const select = document.getElementById("dataset-filter");
+                datasets
+                    .slice()
+                    .sort((a, b) => a.title.localeCompare(b.title))
+                    .forEach((d) => {
+                        const opt = document.createElement("option");
+                        opt.value = d.zenodo_record_id;
+                        opt.textContent = d.title;
+                        select.appendChild(opt);
+                    });
+            });
+    }
+
+    // Keep a node if it, or any descendant, references the selected dataset.
+    // Nodes that survive keep their FULL zenodo_record_ids list untouched,
+    // so overlapping datasets still show alongside the selected one.
+    function pruneTreeForDataset(nodes, datasetId) {
+        const kept = [];
+        nodes.forEach((node) => {
+            const prunedChildren = pruneTreeForDataset(node.children, datasetId);
+            const matchesSelf = node.zenodo_record_ids.includes(Number(datasetId));
+            if (matchesSelf || prunedChildren.length > 0) {
+                kept.push({ ...node, children: prunedChildren });
+            }
+        });
+        return kept;
     }
 
     // --- Flat rendering (used for search results and the Sequence view) ---
@@ -128,15 +175,18 @@ a:hover { text-decoration: underline; }
         return roots;
     }
 
-    function countDescendants(node) {
-        return node.children.reduce((sum, c) => sum + 1 + countDescendants(c), 0);
+    function countLeafDescendants(node) {
+        if (node.children.length === 0) {
+            return 1;
+        }
+        return node.children.reduce((sum, c) => sum + countLeafDescendants(c), 0);
     }
 
     // depth 0 (kingdom) starts expanded; everything deeper starts collapsed
     function nodeHtml(node, depth) {
         const hasChildren = node.children.length > 0;
         const startsCollapsed = depth >= 1;
-        const childCount = hasChildren ? countDescendants(node) : 0;
+        const childCount = hasChildren ? countLeafDescendants(node) : 0;
 
         const toggle = hasChildren
             ? `<span class="toggle-icon">${startsCollapsed ? "▶" : "▼"}</span>`
@@ -171,7 +221,7 @@ a:hover { text-decoration: underline; }
         container.innerHTML = `<ul class="tree-root">${roots.map((r) => nodeHtml(r, 0)).join("")}</ul>`;
 
         let total = 0;
-        roots.forEach((r) => (total += 1 + countDescendants(r)));
+        roots.forEach((r) => (total += countLeafDescendants(r)));
         document.getElementById("result-count").textContent =
             `${total} taxa — click a row to expand/collapse`;
     }
@@ -191,12 +241,23 @@ a:hover { text-decoration: underline; }
     function applyFilter(query) {
         const normalized = query.trim().toLowerCase();
 
+        let taxaForFlatSearch = allTaxa;
+        if (selectedDatasetId) {
+            taxaForFlatSearch = allTaxa.filter((t) =>
+                t.zenodo_record_ids.includes(Number(selectedDatasetId))
+            );
+        }
+
         if (normalized === "") {
-            renderTree(buildTree(allTaxa));
+            const tree = buildTree(allTaxa);
+            const filteredTree = selectedDatasetId
+                ? pruneTreeForDataset(tree, selectedDatasetId)
+                : tree;
+            renderTree(filteredTree);
             return;
         }
 
-        const filtered = allTaxa.filter((t) =>
+        const filtered = taxaForFlatSearch.filter((t) =>
             t.taxon_name.toLowerCase().includes(normalized)
         );
         renderFlat(filtered);
@@ -224,6 +285,12 @@ a:hover { text-decoration: underline; }
         applyFilter(event.target.value);
     });
 
+    document.getElementById("dataset-filter").addEventListener("change", (event) => {
+        selectedDatasetId = event.target.value;
+        applyFilter(document.getElementById("search-input").value);
+    });
+
+    loadDatasetOptions();
     loadSource("gbif");
 </script>
 {% endblock %}
