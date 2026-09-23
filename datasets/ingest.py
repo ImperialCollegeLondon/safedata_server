@@ -1,7 +1,7 @@
 """Ingestion logic for populating the dataset table from a safedata_validator JSON export."""
 
 import json
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, cast
 
@@ -43,6 +43,12 @@ def _parse_date(value: str | None) -> date | None:
         return None
     try:
         return date.fromisoformat(value)
+    except ValueError:
+        pass
+
+    # Try parsing as a datetime and extracting the date part.
+    try:
+        return datetime.fromisoformat(value).date()
     except ValueError as exc:
         raise DatasetIngestError(f"Invalid date value {value!r}: {exc}") from exc
 

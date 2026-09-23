@@ -28,7 +28,7 @@ class Command(BaseCommand):
         if not directory.is_dir():
             raise CommandError(f"{directory} is not a directory.")
 
-        json_files = sorted(directory.glob("*.json"))
+        json_files = sorted(directory.rglob("*.json"))
         if not json_files:
             self.stdout.write(self.style.WARNING(f"No .json files found in {directory}."))
             return
