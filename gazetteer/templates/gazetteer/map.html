@@ -46,10 +46,10 @@ main { padding: 0; max-width: none; }
 <script>
     const map = L.map("map").setView([4.75, 117.6], 12);
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "&copy; OpenStreetMap contributors",
-        maxZoom: 19,
-    }).addTo(map);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=cb1_3v66_1_d8b7161acf933b9edd4af527', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  subdomains: 'abcd', maxZoom: 20
+}).addTo(map);
 
     let geoJsonLayer;
     const allLayers = [];
