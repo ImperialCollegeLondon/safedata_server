@@ -79,6 +79,8 @@ class TestRecordTaxa:
         dataset = Dataset.objects.create(
             zenodo_record_id=7000005,
             zenodo_concept_id=7000005,
+        zenodo_record_doi="10.5281/zenodo.0000000",
+        zenodo_concept_doi="10.5281/zenodo.0000000",
             zenodo_publication_date="2020-01-01",
             title="No taxa dataset",
             description="",

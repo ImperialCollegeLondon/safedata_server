@@ -66,12 +66,16 @@ def _dataset_fields_from_json(data: dict[str, Any]) -> dict[str, Any]:
     latitudinal_extent = data.get("latitudinal_extent") or [None, None]
     longitudinal_extent = data.get("longitudinal_extent") or [None, None]
 
+    zenodo_data = _require(data, "zenodo", context="dataset")
+
     return {
-        "zenodo_record_id": _require(data, "zenodo_record_id", context="dataset"),
-        "zenodo_concept_id": _require(data, "zenodo_concept_id", context="dataset"),
+        "zenodo_record_id": _require(zenodo_data, "id", context="dataset"),
+        "zenodo_concept_id": _require(zenodo_data, "conceptrecid", context="dataset"),
         "zenodo_publication_date": _parse_date(
-            _require(data, "zenodo_publication_date", context="dataset")
+            _require(zenodo_data.get("metadata", {}), "publication_date", context="dataset")
         ),
+        "zenodo_record_doi": _require(zenodo_data, "doi", context="dataset"),
+        "zenodo_concept_doi": _require(zenodo_data, "conceptdoi", context="dataset"),
         "title": _require(data, "title", context="dataset"),
         "description": data.get("description") or "",
         "access": _require(data, "access", context="dataset"),
@@ -218,14 +222,25 @@ def _ingest_locations(dataset: Dataset, locations_data: list[dict[str, Any]]) ->
 
 
 def _ingest_files(dataset: Dataset, data: dict[str, Any]) -> None:
-    """Create the primary Excel file record for a dataset.
-
-    Todo: update for examples with mutliple files when suitable examples come in.
+    """Create file records for a dataset from the nested zenodo.files
+    array, which includes every file Zenodo holds for this record - the
+    primary Excel file and any accompanying files (rasters, XML
+    metadata, etc.) alike.
     """
-    filename = data.get("filename")
-    if filename:
-        DatasetFiles.objects.create(dataset=dataset, filename=filename)
+    zenodo_data = _require(data, "zenodo", context="files")
 
+    for file_data in zenodo_data.get("files") or []:
+        filename = _require(file_data, "filename", context="files")
+        links = file_data.get("links", {})
+
+        DatasetFiles.objects.create(
+            dataset=dataset,
+            filename=filename,
+            zenodo_file_id=_require(file_data, "id", context="files"),
+            filesize=_require(file_data, "filesize", context="files"),
+            checksum=_require(file_data, "checksum", context="files"),
+            download_link=_require(links, "download", context="zenodo.files.links"),
+        )
 
 def _resolve_gazetteer_location(dataset: Dataset, name: str) -> Gazetteer | None:
     """Resolve a dataset's location name against the global gazetteer.
@@ -266,7 +281,8 @@ def ingest_dataset(data: dict[str, Any]) -> Dataset:
         DatasetIngestError: if required fields are missing or malformed.
     """
     with transaction.atomic():
-        zenodo_record_id = _require(data, "zenodo_record_id", context="dataset")
+        zenodo_data = _require(data, "zenodo", context="dataset")
+        zenodo_record_id = _require(zenodo_data, "id", context="zenodo")
         existing_dataset = Dataset.objects.filter(
             zenodo_record_id=zenodo_record_id
         ).first()

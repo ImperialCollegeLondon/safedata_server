@@ -21,6 +21,8 @@ class TestSharedRestriction:
         Dataset.objects.create(
             zenodo_record_id=6000001,
             zenodo_concept_id=6000001,
+        zenodo_record_doi="10.5281/zenodo.0000000",
+        zenodo_concept_doi="10.5281/zenodo.0000000",
             zenodo_publication_date="2020-01-01",
             title="Outdated version",
             description="",
@@ -30,6 +32,8 @@ class TestSharedRestriction:
         Dataset.objects.create(
             zenodo_record_id=6000002,
             zenodo_concept_id=6000001,
+        zenodo_record_doi="10.5281/zenodo.0000000",
+        zenodo_concept_doi="10.5281/zenodo.0000000",
             zenodo_publication_date="2021-01-01",
             title="Newer version",
             description="",

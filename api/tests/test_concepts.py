@@ -12,6 +12,8 @@ class TestConceptVersions:
         Dataset.objects.create(
             zenodo_record_id=8000001,
             zenodo_concept_id=8000001,
+        zenodo_record_doi="10.5281/zenodo.0000000",
+        zenodo_concept_doi="10.5281/zenodo.0000000",
             zenodo_publication_date="2020-01-01",
             title="Single version dataset",
             description="",
@@ -31,6 +33,8 @@ class TestConceptVersions:
         Dataset.objects.create(
             zenodo_record_id=8000002,
             zenodo_concept_id=8000002,
+        zenodo_record_doi="10.5281/zenodo.0000000",
+        zenodo_concept_doi="10.5281/zenodo.0000000",
             zenodo_publication_date="2019-01-01",
             title="Older title",
             description="",
@@ -40,6 +44,8 @@ class TestConceptVersions:
         Dataset.objects.create(
             zenodo_record_id=8000003,
             zenodo_concept_id=8000002,
+        zenodo_record_doi="10.5281/zenodo.0000000",
+        zenodo_concept_doi="10.5281/zenodo.0000000",
             zenodo_publication_date="2021-01-01",
             title="Newer title",
             description="",
@@ -61,6 +67,8 @@ class TestConceptVersions:
         Dataset.objects.create(
             zenodo_record_id=8000004,
             zenodo_concept_id=8000004,
+        zenodo_record_doi="10.5281/zenodo.0000000",
+        zenodo_concept_doi="10.5281/zenodo.0000000",
             zenodo_publication_date="2020-01-01",
             title="Restricted dataset",
             description="",
@@ -78,6 +86,8 @@ class TestConceptVersions:
         Dataset.objects.create(
             zenodo_record_id=8000005,
             zenodo_concept_id=8000005,
+        zenodo_record_doi="10.5281/zenodo.0000000",
+        zenodo_concept_doi="10.5281/zenodo.0000000",
             zenodo_publication_date="2020-01-01",
             title="Embargoed dataset",
             description="",
@@ -98,6 +108,8 @@ class TestConceptVersions:
         Dataset.objects.create(
             zenodo_record_id=8000006,
             zenodo_concept_id=8000006,
+        zenodo_record_doi="10.5281/zenodo.0000000",
+        zenodo_concept_doi="10.5281/zenodo.0000000",
             zenodo_publication_date="2020-01-01",
             title="Expired embargo dataset",
             description="",
@@ -120,6 +132,8 @@ class TestConceptVersions:
         Dataset.objects.create(
             zenodo_record_id=8000007,
             zenodo_concept_id=8000007,
+        zenodo_record_doi="10.5281/zenodo.0000000",
+        zenodo_concept_doi="10.5281/zenodo.0000000",
             zenodo_publication_date="2019-01-01",
             title="v1",
             description="",
@@ -129,6 +143,8 @@ class TestConceptVersions:
         Dataset.objects.create(
             zenodo_record_id=8000008,
             zenodo_concept_id=8000007,
+        zenodo_record_doi="10.5281/zenodo.0000000",
+        zenodo_concept_doi="10.5281/zenodo.0000000",
             zenodo_publication_date="2020-01-01",
             title="v2",
             description="",
@@ -138,6 +154,8 @@ class TestConceptVersions:
         Dataset.objects.create(
             zenodo_record_id=8000009,
             zenodo_concept_id=8000007,
+        zenodo_record_doi="10.5281/zenodo.0000000",
+        zenodo_concept_doi="10.5281/zenodo.0000000",
             zenodo_publication_date="2021-01-01",
             title="v3",
             description="",

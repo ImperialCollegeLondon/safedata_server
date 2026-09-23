@@ -15,12 +15,16 @@ def base_dataset_json(**overrides):
     """A minimal valid dataset export, with every field this app actually
     requires. Individual tests override specific keys to test variations."""
     data = {
-        "zenodo_record_id": 1000001,
-        "zenodo_concept_id": 1000001,
-        "zenodo_publication_date": "2024-01-15",
+        "zenodo": {
+            "id": 1000001,
+            "conceptrecid": 1000001,
+            "doi": "10.5281/zenodo.1000001",
+            "conceptdoi": "10.5281/zenodo.1000001",
+            "metadata": {"publication_date": "2024-01-15"},
+            "files": [],
+        },
         "title": "Test Dataset",
         "description": "A dataset for testing.",
-        "filename": "test_dataset.xlsx",
         "access": "Open",
         "embargo_date": None,
         "access_conditions": None,
@@ -63,7 +67,7 @@ class TestIngestDatasetCore:
 
     def test_missing_zenodo_record_id_raises(self, db):
         data = base_dataset_json()
-        del data["zenodo_record_id"]
+        del data["zenodo"]["id"]
 
         with pytest.raises(DatasetIngestError):
             ingest_dataset(data)

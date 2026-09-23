@@ -52,6 +52,8 @@ def dataset_a(db, sample_gazetteer):
     dataset = Dataset.objects.create(
         zenodo_record_id=5000001,
         zenodo_concept_id=5000001,
+        zenodo_record_doi="10.5281/zenodo.0000000",
+        zenodo_concept_doi="10.5281/zenodo.0000000",
         zenodo_publication_date="2020-01-01",
         title="Ant diversity in old-growth forest",
         description="A study of forest ants.",
@@ -93,6 +95,8 @@ def dataset_b(db, sample_gazetteer):
     dataset = Dataset.objects.create(
         zenodo_record_id=5000002,
         zenodo_concept_id=5000002,
+        zenodo_record_doi="10.5281/zenodo.0000000",
+        zenodo_concept_doi="10.5281/zenodo.0000000",
         zenodo_publication_date="2021-06-01",
         title="Soil carbon flux measurements",
         description="Carbon dioxide flux from soil respiration.",
@@ -115,6 +119,8 @@ def dataset_with_gbif_taxa(db):
     dataset = Dataset.objects.create(
         zenodo_record_id=7000001,
         zenodo_concept_id=7000001,
+        zenodo_record_doi="10.5281/zenodo.0000000",
+        zenodo_concept_doi="10.5281/zenodo.0000000",
         zenodo_publication_date="2020-01-01",
         title="First GBIF dataset",
         description="",
@@ -152,6 +158,8 @@ def second_dataset_sharing_gbif_taxon(db):
     dataset = Dataset.objects.create(
         zenodo_record_id=7000002,
         zenodo_concept_id=7000002,
+        zenodo_record_doi="10.5281/zenodo.0000000",
+        zenodo_concept_doi="10.5281/zenodo.0000000",
         zenodo_publication_date="2021-01-01",
         title="Second GBIF dataset",
         description="",
@@ -186,6 +194,8 @@ def dataset_with_sequence_taxa(db):
     dataset = Dataset.objects.create(
         zenodo_record_id=7000003,
         zenodo_concept_id=7000003,
+        zenodo_record_doi="10.5281/zenodo.0000000",
+        zenodo_concept_doi="10.5281/zenodo.0000000",
         zenodo_publication_date="2020-06-01",
         title="Sequence dataset",
         description="",
@@ -214,6 +224,8 @@ def second_dataset_sharing_sequence_rank_name(db):
     dataset = Dataset.objects.create(
         zenodo_record_id=7000004,
         zenodo_concept_id=7000004,
+        zenodo_record_doi="10.5281/zenodo.0000000",
+        zenodo_concept_doi="10.5281/zenodo.0000000",
         zenodo_publication_date="2021-06-01",
         title="Second sequence dataset",
         description="",

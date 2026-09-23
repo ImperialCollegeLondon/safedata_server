@@ -18,6 +18,8 @@ class Dataset(models.Model):
     )
     zenodo_concept_id: models.IntegerField = models.IntegerField()
     zenodo_publication_date: models.DateField = models.DateField()
+    zenodo_record_doi = models.CharField(max_length=255)
+    zenodo_concept_doi = models.CharField(max_length=255)
 
     title: models.CharField = models.CharField(max_length=1000)
     description: models.TextField = models.TextField()
@@ -247,6 +249,10 @@ class Locations(models.Model):
 class DatasetFiles(models.Model):
     dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name="files")
     filename = models.CharField(max_length=500)
+    zenodo_file_id = models.CharField(max_length=36)
+    filesize = models.BigIntegerField()
+    checksum = models.CharField(max_length=32)
+    download_link = models.URLField()
 
     def __str__(self):
         return self.filename
