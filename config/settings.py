@@ -27,12 +27,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-y_tu#jut*ev@dy!3ek3mu&v-v2s#2$rrp6py*t^wuxrxxw#)j*"
+SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get("DJANGO_DEBUG", "0") == "1"
 
-ALLOWED_HOSTS: list[str] = []
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",")
+    if host.strip()
+]
 
 # Application definition
 
@@ -139,3 +143,13 @@ STATIC_URL = "static/"
 
 
 GAZETTEER_LOCAL_EPSG = int(os.environ["GAZETTEER_LOCAL_EPSG"])
+
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+LOGIN_URL = "admin:login"
+
+# Only enable once the site is served over HTTPS (see note below).
+if os.environ.get("DJANGO_HTTPS", "0") == "1":
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True

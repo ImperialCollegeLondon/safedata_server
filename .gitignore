@@ -11,3 +11,4 @@ index.json
 record.json
 .DS_Store
 .vscode/
+staticfiles/
