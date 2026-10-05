@@ -299,8 +299,11 @@ def ingest_dataset(data: dict[str, Any]) -> Dataset:
         else:
             dataset = _create_dataset(data)
 
-        for project_id in data.get("project_ids") or []:
-            DatasetProject.objects.create(dataset=dataset, project_id=project_id)
+        project_ids = data.get("project_ids") or []
+        # Prevent duplicate project_ids:
+        if len(project_ids) != len(set(project_ids)):
+            raise DatasetIngestError(f"project_ids contains duplicate values: {project_ids}")
+
 
         for author in data.get("authors") or []:
             DatasetAuthors.objects.create(
