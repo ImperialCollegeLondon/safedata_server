@@ -1,0 +1,206 @@
+"""Per-record metadata endpoint.
+
+show_record(), show_worksheet(), get_taxa(), and get_locations() in the
+legacy R package all operate on an already-fetched metadata object rather
+than making their own separate API calls, so a single rich per-record
+endpoint covers all of them client-side.
+
+The response is a clean reconstruction from our normalized tables, not a
+replica of the original safedata_validator export.
+"""
+
+from django.shortcuts import get_object_or_404
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from datasets.models import Dataset
+
+from datetime import date as date_type
+
+from django.http import Http404
+
+
+def _serialize_location(location) -> dict:
+    """Return the public representation of a normalized location.
+
+    Location geometry and gazetteer entries are optional, so this keeps the
+    endpoint safe for records containing only one of those representations.
+    """
+    gazetteer = location.gazetteer_location
+    geometry = location.geom_wgs84
+    return {
+        "name": location.name,
+        "new_location": location.new_location,
+        "gazetteer_location": gazetteer.location if gazetteer else None,
+        "wkt_wgs84": geometry.wkt if geometry else None,
+    }
+
+
+def _serialize_record(dataset: Dataset) -> dict:
+    return {
+        "zenodo_record_id": dataset.zenodo_record_id,
+        "zenodo_concept_id": dataset.zenodo_concept_id,
+        "zenodo_publication_date": dataset.zenodo_publication_date,
+        "title": dataset.title,
+        "description": dataset.description,
+        "files": [f.filename for f in dataset.files.all()],
+        "access": dataset.access,
+        "embargo_date": dataset.embargo_date,
+        "access_conditions": dataset.access_conditions,
+        "validator_version": dataset.validator_version,
+        "gbif_timestamp": dataset.gbif_timestamp,
+        "temporal_extent": [
+            dataset.temporal_extent_start,
+            dataset.temporal_extent_end,
+        ],
+        "latitudinal_extent": [
+            dataset.latitudinal_extent_min,
+            dataset.latitudinal_extent_max,
+        ],
+        "longitudinal_extent": [
+            dataset.longitudinal_extent_min,
+            dataset.longitudinal_extent_max,
+        ],
+        "project_ids": [p.project_id for p in dataset.projects.all()],
+        "authors": [
+            {
+                "name": a.name,
+                "affiliation": a.affiliation,
+                "email": a.email,
+                "orcid": a.orcid,
+            }
+            for a in dataset.authors.all()
+        ],
+        "funders": [
+            {"body": f.body, "type": f.type, "ref": f.ref, "url": f.url}
+            for f in dataset.funders.all()
+        ],
+        "permits": [
+            {"type": p.type, "authority": p.authority, "number": p.number}
+            for p in dataset.permits.all()
+        ],
+        "keywords": [k.keyword for k in dataset.keywords.all()],
+        "worksheets": [
+            {
+                "name": w.name,
+                "title": w.title,
+                "description": w.description,
+                "max_row": w.max_row,
+                "max_col": w.max_col,
+                "field_name_row": w.field_name_row,
+                "n_data_row": w.n_data_row,
+                "fields": [
+                    {
+                        "field_name": f.field_name,
+                        "description": f.description,
+                        "field_type": f.field_type,
+                        "units": f.units,
+                        "method": f.method,
+                        "levels": f.levels,
+                        "range": f.range,
+                        "taxon_field": f.taxon_field,
+                        "taxon_name": f.taxon_name,
+                        "interaction_field": f.interaction_field,
+                        "interaction_name": f.interaction_name,
+                        "col_idx": f.col_idx,
+                    }
+                    for f in w.fields.all()
+                ],
+            }
+            for w in dataset.worksheets.all()
+        ],
+        "taxa": [
+            {
+                "source": t.source,
+                "taxon_id": t.taxon_id,
+                "parent_id": t.parent_id,
+                "taxon_name": t.taxon_name,
+                "taxon_rank": t.taxon_rank,
+                "taxon_status": t.taxon_status,
+                "worksheet_name": t.worksheet_name,
+                "database_name": t.database_name,
+                "database_version": t.database_version,
+                "database_link": t.database_link,
+            }
+            for t in dataset.taxa.all()
+        ],
+        "locations": [
+            _serialize_location(location)
+            for location in dataset.locations.all()
+        ],
+    }
+
+
+class RecordMetadataView(APIView):
+    """Full metadata for one dataset record, keyed by its Zenodo record id.
+
+    GET /api/records/<zenodo_record_id>/
+    """
+
+    def get(self, request, zenodo_record_id, *args, **kwargs):
+        dataset = get_object_or_404(
+            Dataset.objects.prefetch_related(
+                "projects",
+                "authors",
+                "funders",
+                "permits",
+                "keywords",
+                "worksheets__fields",
+                "taxa",
+                "locations__gazetteer_location",
+            ),
+            zenodo_record_id=zenodo_record_id,
+        )
+        return Response(_serialize_record(dataset))
+
+
+def _version_status(dataset: Dataset, *, is_most_recent: bool) -> str:
+    """Match the R package's availability convention: "*" for the most
+    recent available version, "o" for older available versions, "x" for
+    anything embargoed or otherwise inaccessible. ("!" - a locally
+    inserted private copy - is a client-side-only R concept and has no
+    server-side equivalent.)
+    """
+    is_embargoed = dataset.embargo_date is not None and dataset.embargo_date > date_type.today()
+    is_available = dataset.access == "Open" and not is_embargoed
+
+    if not is_available:
+        return "x"
+    return "*" if is_most_recent else "o"
+
+
+class ConceptVersionsView(APIView):
+    """All record versions sharing one dataset concept, with their
+    availability status - the show_concepts() equivalent.
+
+    GET /api/concepts/<zenodo_concept_id>/
+    """
+
+    def get(self, request, zenodo_concept_id, *args, **kwargs):
+        versions = Dataset.objects.filter(
+            zenodo_concept_id=zenodo_concept_id
+        ).order_by("-zenodo_record_id")
+
+        if not versions.exists():
+            raise Http404(f"No dataset found with zenodo_concept_id={zenodo_concept_id}.")
+
+        most_recent_id = versions.first().zenodo_record_id
+
+        return Response(
+            {
+                "zenodo_concept_id": zenodo_concept_id,
+                "title": versions.first().title,
+                "versions": [
+                    {
+                        "zenodo_record_id": v.zenodo_record_id,
+                        "published": v.zenodo_publication_date,
+                        "embargo_date": v.embargo_date,
+                        "access": v.access,
+                        "status": _version_status(
+                            v, is_most_recent=v.zenodo_record_id == most_recent_id
+                        ),
+                    }
+                    for v in versions
+                ],
+            }
+        )

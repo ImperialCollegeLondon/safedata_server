@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}safedata_server{% endblock %}
+
+{% block content %}
+<h1>safedata_server</h1>
+<p>A metadata catalogue and gazetteer for published SAFE Project datasets.</p>
+
+<h2>Explore</h2>
+<ul>
+    <li><a href="{% url 'gazetteer:map' %}">Gazetteer map</a> — browse and search known sampling locations</li>
+    <li><a href="{% url 'datasets:list' %}">Datasets</a> — browse and search published datasets</li>
+</ul>
+
+<h2>Contribute</h2>
+<ul>
+    <li><a href="{% url 'gazetteer:upload-page' %}">Upload gazetteer data</a></li>
+    <li><a href="{% url 'datasets:upload-page' %}">Upload a dataset</a></li>
+</ul>
+{% endblock %}

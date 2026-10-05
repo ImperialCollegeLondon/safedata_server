@@ -1,301 +1,211 @@
-# The `safedata_server` application
+# safedata_server
 
-This is a web application written using the Web2Py framework that implements the
-API used by the `safedata_validator` and `safedata` packages for publishing and
-using sets of linked scientific datasets.
+A web application providing a searchable database of metadata for datasets
+published using the [`safedata_validator`](https://github.com/ImperialCollegeLondon/safedata_validator)
+program.
 
-## Installation
+## 1. Overview
 
-These notes are very brief but the main requirements are:
+When a dataset is published using `safedata_validator`:
 
-* Setup and configure a web server serving [Web2Py](http://www.web2py.com) web
-  applications.
+1. The dataset is published to Zenodo, possibly as a new version of an
+   existing dataset.
+2. `safedata_validator` exports a JSON document containing validated
+   metadata for the dataset.
+3. That JSON is uploaded here, either via the web UI or the API, and its
+   metadata is parsed into a searchable database.
 
-* The server will also need to be able to access a [PostgreSQL](https://postgresql.org)
-  server  to handle data storage for the web application and the underlying GIS
-  operations. That could be installed on the  web server or in a separate database
-  server.
+The application also maintains a **gazetteer** — a spatial database of
+known sampling locations — and a table of **location aliases**, so that
+location names used inconsistently across datasets can still be resolved
+to a single, known site.
 
-* `safedata_server` uses GIS functionality within PostgreSQL provided by
-  [PostGIS](https://postgis.net), so you will need to install this on the database
-  server and then create a template database with PostGIS enabled.
+### Tech stack
 
-```SQL
--- create a postgis enabled template
-\c postgres
-CREATE DATABASE template_postgis;
-UPDATE pg_database SET datistemplate = TRUE WHERE datname = 'template_postgis';
-\c template_postgis
-CREATE EXTENSION postgis;
+- **Django** + **GeoDjango**, with **SpatiaLite** as the spatial database
+  backend (no separate database server required)
+- **Django REST Framework** for the API, with token authentication for
+  upload endpoints
+- **Leaflet** (via CDN) for the gazetteer map and taxon browsing pages
+- **uv** for Python dependency and environment management
+- **pytest** / **pytest-django** for testing
+
+### App structure
+
+```
+config/       Project settings, root URLs
+gazetteer/    Gazetteer + alias models, ingestion, map/upload web pages
+datasets/     Dataset metadata models, ingestion, browse/detail/taxa/upload web pages
+api/          All JSON/REST endpoints: search, records, taxa, uploads, downloads
 ```
 
-* Create a [PostgreSQL](https://postgresql.org) database user for the web application
-  and then use the PostGIS template to create a database to be used by the application.
+The rule of thumb: **`gazetteer`/`datasets`** hold models, ingestion logic,
+and human-facing HTML pages; **`api`** holds everything that returns JSON.
 
-```SQL
--- Setup a PostGIS enabled database for the web application
-CREATE USER safedata_server_admin WITH PASSWORD 'password';
-CREATE DATABASE safedata_server 
-    WITH TEMPLATE template_postgis OWNER safedata_server_admin;
+---
+
+## 2. Developer guide
+
+### Prerequisites
+
+This project uses GeoDjango, which needs several native (non-Python)
+libraries installed on your system before anything will run: **GDAL**,
+**GEOS**, and **SpatiaLite** (the SQLite spatial extension).
+
+#### macOS
+
+```bash
+brew install gdal geos spatialite-tools libspatialite sqlite
 ```
 
-* Clone this repository into the Web2Py `applications` directory.
+**Important — SQLite extension loading.** macOS's system Python/SQLite is
+built *without* support for loading extensions (a deliberate Apple
+security choice), which SpatiaLite requires. If you're using `pyenv`, you
+need to rebuild your Python version with extension loading enabled,
+linked against Homebrew's SQLite (not the system one):
 
-* Update the file in `private/appconfig_template.ini` to include the connection string
-  for the database and to include a secure token used to validate metadata upload.
+```bash
+pyenv uninstall 3.12.8   # or whichever version you're using
+rm -rf ~/.pyenv/cache
 
-```ini
-[db]
-uri = postgres://safedata_server_admin:password@localhost/safedata_server
+PYTHON_CONFIGURE_OPTS="--enable-loadable-sqlite-extensions" \
+LDFLAGS="-L$(brew --prefix sqlite)/lib" \
+CPPFLAGS="-I$(brew --prefix sqlite)/include" \
+PKG_CONFIG_PATH="$(brew --prefix sqlite)/lib/pkgconfig" \
+pyenv install 3.12.8
 ```
 
-* Configure the Web2Py routes to use this as the default application.
+Verify it worked before proceeding:
 
-## Usage
-
-The webserver is used to ingest metadata about datasets that have been validated and
-published using the
-[`safedata_validator`](https://safedata-validator.readthedocs.io/en/latest/) python
-package and then serve that metadata out to users, principally via the
-[`safedata`](https://imperialcollegelondon.github.io/safedata/index.html) R package.
-
-## Deploying the web application
-
-This is a recipe to create a live version of the web application, using AWS Lightsail.
-
-### AWS Lightsail
-
-Lightsail instances are pre-packaged virtual machines primarily designed to run websites
-and applications. You could use EC2 virtual machines and EBS storage, but Lightsail is
-faster and easier. You will need to have an AWS account and that does need payment
-details - although the first month is free, eventually you will be charged.
-
-#### Create a Lightsail instance
-
-Go to the [Lightsail console](https://lightsail.aws.amazon.com/ls/webapp/home/instances)
-to create an instance.
-
-* Select an "OS only" blueprint and the most recent Ubuntu LTS.  The prepackaged "Apps +
-  OS"  blueprints do not currently include web2py.
-
-* Click change the SSH key pair and name and create a new SSH key. You will need to
-  download the private key file (`key_name.pem`) and look after it - you'll never get
-  another opportunity to save it. This private key can be used to connect via SSH and
-  SFTP and can be given to other trusted people who might want access.
-
-* Choose the instance specs, name the instance and then create it.
-
-#### Create a static IP
-
-Your new instance has a public IP address, but if something happens and you need to
-recreate the instance then that IP address will change.
-
-* Go to the networking tab on the Lightsail console and click on create a static IP.
-* Choose a name for the Static IP address and attach your newly created instance to the
-  new static IP.
-
-Now, if you do have to change the Lightsail instance - an OS upgrade or some hideous
-crash - then you can simply attach it to the same Static IP.
-
-#### Allow HTTPS connections
-
-The default setup is that the instance will accept SSH and HTTP connections, but we will
-be setting up the application to use HTTPS.
-
-* On the instance tab of the Lightsail console, click on the instance you created.
-* Now click on the 'Networking' tab for the instance and, under the Firewall settings,
-  click 'Add rule', select the 'HTTPS' application and click create.
-
-### Instance setup
-
-We now need to setup the Lightsail VM to serve this application. There is a Connect tab
-on the instance console containing a big orange button that will launch an SSH session
-in your browser. However, this relies on you being logged into AWS, so will only work
-for the account holder. More generally, an administrator can log in using the SSH key
-file as below. Note that `ubuntu` is the root account name.
-
-``` sh
-# SSH session
-ssh -i key_name.pem ubuntu@18.130.184.162
-# SFTP
-sftp -i key_name.pem ubuntu@18.130.184.162
+```bash
+$(pyenv root)/versions/3.12.8/bin/python3 -c \
+  "import sqlite3; print(sqlite3.connect(':memory:').enable_load_extension)"
 ```
 
-#### Install web2py
+This should print a bound method, not raise an `AttributeError`.
 
-The first thing to do is install all the machinery needed to run a webserver and the
-application. Fortunately, web2py provides some canned recipes that do this
-automatically. We will use [web2py](http://www.web2py.com/) running under the
-[nginx](https://www.nginx.com/) webserver.
+#### Linux (Debian/Ubuntu)
 
-* Log in to the virtual machine using SSH or the AWS console.
-* Download and run the recipe for setting up web2py using nginx on Ubuntu. This script
-  requires some user input on occasion.
-
-```sh
-curl -O https://raw.githubusercontent.com/web2py/web2py/master/scripts/setup-web2py-nginx-uwsgi-ubuntu.sh
-sudo sh setup-web2py-nginx-uwsgi-ubuntu.sh
+```bash
+sudo apt install gdal-bin libgdal-dev libgeos-dev libsqlite3-mod-spatialite spatialite-bin
 ```
 
-* Reboot the instance
+System Python on Linux typically already supports extension loading, so
+the rebuild step above usually isn't necessary.
 
-```sh
-sudo reboot
+### Project setup
+
+```bash
+git clone <repo-url>
+cd safedata_server
+
+uv python pin 3.12.8   # or your rebuilt version
+uv sync
 ```
 
-After the instance restarts, you _should_ be able to point a browser at your static IP
-address and see the web2py welcome application.
+### Environment variables
 
-### Switching to python3
+Copy the example file and fill in real values:
 
-Assuming you have `python3` installed - and it should come by default with the instance
-image - you can now switch the webserver to use python3. This involves replacing the
-`uwsgi` installed by the script with the python3 version:
-
-```sh
-sudo apt install python3-pip
-sudo -H pip uninstall uwsgi
-sudo -H pip3 install uwsgi
-reboot
+```bash
+cp .env.example .env
 ```
 
-### Install the application
+| Variable | Description |
+|---|---|
+| `GAZETTEER_LOCAL_EPSG` | EPSG code for the deployment's local projected CRS (e.g. `32650` for UTM Zone 50N — used for accurate distance/area calculations and spatial buffering). Get this right for your field site region; it cannot be safely guessed. |
+| `DJANGO_SECRET_KEY` | A random secret string for Django's cryptographic signing. Generate one with `python -c "import secrets; print(secrets.token_urlsafe(50))"`. |
 
-* At the moment, the application repository is private, so you will need to authenticate
-  to clone the application code. This is easier using HTTPS and you should be prompted
-  for a password - note you need to set your username in the URL! Note that the
-  `www-data` user is set here so that that account owns the application directory,
-  otherwise you'll get permission errors when you try to access the website.
+`GDAL_LIBRARY_PATH` / `GEOS_LIBRARY_PATH` are resolved automatically at
+runtime on macOS via `brew --prefix`, so you shouldn't need to set these
+by hand unless your setup is non-standard.
 
-```sh
-cd /home/www-data/web2py/applications
-sudo -u www-data git clone https://github.com/ImperialCollegeLondon/safedata_server.git
+### Database setup
+
+```bash
+uv run python manage.py migrate
+uv run python manage.py createsuperuser
 ```
 
-* If you do get permission errors then you can probably fix it like this:
+The database is a single SpatiaLite file (`db.sqlite3`) — no separate
+database server to run.
 
-```sh
-cd /home/www-data/web2py/applications
-sudo chown -R www-data safedata_server
+### Generate an API token
+
+Upload endpoints require token authentication. Generate one for your
+superuser (or a dedicated service account):
+
+```bash
+uv run python manage.py drf_create_token <username>
 ```
 
-* You now need to install some python packages needed for the application. These are
-  being installed globally (`-H`) rather than just into the site packages for the
-  `ubuntu` account. You might as well install ipython as well - it is useful if you end
-  up needing to debug the application on the server
+This prints a 40-character token. Use it in the `Authorization` header
+on upload requests (see the Admin/User Guide below).
 
-```sh
-cd /home/www-data/web2py/applications/safedata_server
-sudo -H pip install -r requirements.txt
-sudo -H pip install ipython
+### Running the app
+
+```bash
+uv run python manage.py runserver
 ```
 
-* You need to set an admin user password for web2py in order to access the web2py admin
-  application and the admin pages for `safedata_server`. You will need to make a note of
-  what you enter here - once it is set it is not recoverable, although you can simply
-  repeat this command to set a new password.
+Visit `http://127.0.0.1:8000/`.
 
-```sh
-cd /home/www-data/web2py
-sudo python -c "from gluon.main import save_password; save_password(input('admin password: '),443)"
+### Running tests
+
+```bash
+uv run pytest
 ```
 
-* Now just to make the user experience nicer, set the routes for web2py so that
-  `safedata_server/default` is used as the default and can be omitted from URLs.
+Tests are organised per app, with shared fixtures (`sample_gazetteer`,
+`api_client_with_token`, etc.) in the project-root `conftest.py`.
 
-```sh
-echo "routers = dict(
-    BASE = dict(
-        default_application='safedata_server',
-    )
-)
-" | sudo tee /home/www-data/web2py/routes.py
+### Ingesting data in bulk
+
+For ingesting many dataset JSON files at once (e.g. a batch migration),
+use the management command rather than uploading one at a time:
+
+```bash
+uv run python manage.py ingest_datasets path/to/directory/
 ```
 
-* Populating the database.
+This ingests every `.json` file in the directory, printing a summary of
+successes and failures. Individual dataset failures don't stop the batch.
 
-If you are moving an existing instance of the application rather than starting afresh,
-you now should need to simply move the `storage.sqlite` file from the old instance into
-the `databases` folder.
+---
 
-* **Configure the application**. The application requires some configuration
-  information, which is stored in `private/appconfig.ini`. This is not included in the
-  repo because it contains sensitive information, but an empty template is that you will
-  need to complete and rename. The configuration sets up the database connection,  the
-  email account used to send email from the application. TODO
+## 3. Admin/user guide
 
-* If you restart the webserver and web2py, the IP address should go straight to the
-  landing page for `safedata_server`. The commands below are generally useful for
-  refreshing and testing changes to the server and web2py.
+There are two ways to get data into the system: the **web UI** (for a
+person, in a browser, logged in) and the **API** (for scripts, tools, or
+the `safedata` R package).
 
-```sh
-# Restart UWSGI and NGINX
-sudo start uwsgi-emperor
-sudo /etc/init.d/nginx restart
-# Restart web2py leaving the webserver alone
-sudo touch /etc/uwsgi/web2py.xml
-```
+### Web UI
 
-## Email connections
+All upload pages require being logged in (`@login_required` — the same
+account as the Django admin).
 
-AWS imposes limitations on connecting to email server via SMTP ports (e.g. 25). In order
-to send email via SMTP, you have to contact AWS and ask for those restrictions to be
-lifted.
+| Page | URL | Purpose |
+|---|---|---|
+| Home | `/` | Landing page with links to everything below |
+| Gazetteer map | `/gazetteer/map/` | Searchable map of all known sampling locations |
+| Upload gazetteer | `/gazetteer/upload/` | Upload a gazetteer GeoJSON file and/or an aliases CSV |
+| Datasets | `/datasets/` | Searchable list of published datasets |
+| Dataset detail | `/datasets/<zenodo_record_id>/` | Full metadata for one dataset |
+| Upload dataset | `/datasets/upload/` | Upload a `safedata_validator` JSON export |
+| Browse taxa | `/datasets/taxa/` | Collapsible taxonomic tree across all datasets (GBIF / Sequence toggle) |
+| Admin | `/admin/` | Django admin — inspect raw table contents |
 
-<https://console.aws.amazon.com/support/contacts?#/rdns-limits>
+To upload via the web UI: log in at `/admin/login/`, then visit the
+relevant upload page, choose a file, and submit. Success or failure is
+shown as a message banner after redirect.
 
-It is also good to configure reverse DNS so that the IP address points to the domain as
-well as vice versa.
+**Note on transaction behaviour:** a dataset upload and a gazetteer
+GeoJSON upload are both all-or-nothing — if any part of the file fails,
+nothing from that file is saved. The same is true of the aliases CSV
+upload. Fix the file and re-upload; there's no partial state to clean up.
 
-The application uses SMTP to send email messages and then can use IMAP to store sent
-messages in an existing email account in order to keep am easily searchable record of
-the emails that have been sent by the system. However, authenticating to IMAP can be
-difficult - and may require enterprise level OAuth2.0 tokens. In this situation, the
-IMAP storage can be turned off using the config option `email.use_imap = false`. The
-application will then BCC all emails to the sending account, and include the email
-header `Automator: Silwood Masters` to allow email rules to help manage automated
-messages.
+### API
 
-## Enabling HTTPS
-
-Using HTTPS requires that the webserver is issued a valid certificate.
-[LetsEncrypt](https://letsencrypt.org/) is a free, non-profit certificate authority
-supported by a really good command line tool to issue and renew the certificate.
-
-However, you can only get a certificate for a domain name (`www.silwoodmasters.org`) and
-not an IP address (`18.130.184.162`), so you will need to obtain a domain name and then
-register an A Record that points that domain name to the Static IP you created.
-
-* Once you've done that then install the LetsEncrypt software:
-
-```sh
-sudo apt-get update
-sudo apt-get install software-properties-common
-sudo add-apt-repository universe
-sudo add-apt-repository ppa:certbot/certbot
-sudo apt-get update
-sudo apt-get install certbot python3-certbot-nginx
-```
-
-* You can now run the certbot, specifying the domain name
-
-```sh
-sudo certbot --nginx -d mydomainame.com -d www.mydomainame.com
-```
-
-* Restart the webserver as above and you should now have a secure HTTPS connection to
-  the application. The [certbot website](https://certbot.eff.org/) has some neat tools
-  to check whether it is working correctly.
-
-### Enabling uploads
-
-By default, `nginx` is configured to only allow uploads of 1MB or less. Although posting
-metadata to the server is unlikely to exceed that limit, uploading gazetteer data may
-very well. In order to avoid this issue, you will need to update the `nginx` settings.
-Using `vi` or another text editor, open the following file and then uncomment the lines
-that say `# client_max_body_size 10m;`. You will need to uncomment _two_ lines, one for
-HTTP and one for HTTPS connections.
-
-```sh
-sudo vi /etc/nginx/sites-enabled/web2py
-```
+All API endpoints are under `/api/`, with full reference documentation
+— authentication, uploading, downloading, search, records, and taxon
+identity notes — available at `/api/docs/` once the server is running.

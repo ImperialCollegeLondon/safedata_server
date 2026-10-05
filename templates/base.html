@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>{% block title %}safedata_server{% endblock %}</title>
+    <style>
+        body { font-family: sans-serif; margin: 0; color: #222; }
+        nav {
+            background: #1a5fb4;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        nav a {
+            color: white;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        nav a:hover { text-decoration: underline; }
+        nav .brand { font-weight: bold; font-size: 16px; margin-right: 20px; }
+        nav .spacer { flex: 1; }
+        main { padding: 2rem; max-width: 900px; margin: 0 auto; }
+        .message { padding: 10px; border-radius: 4px; margin-bottom: 1rem; }
+        .message.success { background: #e6f4ea; color: #1e7e34; }
+        .message.error { background: #fdecea; color: #b3261e; }
+        {% block extra_style %}{% endblock %}
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <nav>
+        <a class="brand" href="{% url 'home' %}">safedata_server</a>
+        <a href="{% url 'gazetteer:map' %}">Gazetteer Map</a>
+        <a href="{% url 'gazetteer:upload-page' %}">Upload Gazetteer</a>
+        <a href="{% url 'datasets:list' %}">Datasets</a>
+        <a href="{% url 'datasets:upload-page' %}">Upload Dataset</a>
+        <a href="{% url 'datasets:taxa' %}">Browse Taxa</a>
+        <a href="{% url 'api:docs' %}">API Docs</a>
+        <div class="spacer"></div>
+        {% if user.is_authenticated %}
+            <a href="{% url 'admin:index' %}">Admin</a>
+            <span style="color:#cfe0f7; font-size:14px;">{{ user.username }}</span>
+        {% else %}
+            <a href="{% url 'admin:login' %}?next={{ request.path }}">Log in</a>
+        {% endif %}
+    </nav>
+
+    <main>
+        {% for message in messages %}
+        <div class="message {{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>
