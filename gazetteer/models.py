@@ -10,7 +10,7 @@ from django.db.models import Q
 
 class Gazetteer(models.Model):
     """The set of recognised sampling locations for the project.
-    
+
     Each location has a name and a geometry, stored in both WGS84 (global
     lat/lon) and a local projected coordinate system (for accurate distance
     and area calculations). The local coordinate system is project specific
@@ -33,7 +33,7 @@ class GazetteerAlias(models.Model):
     Allows a name used in a dataset (which doesn't match an official
     gazetteer location) to be mapped onto one retrospectively. The dataset
     attribute means that the same alias could be used in different datasets
-    without confusion. If `dataset` is null, the alias is a general alias 
+    without confusion. If `dataset` is null, the alias is a general alias
     that applies across all datasets; otherwise it only applies within that
     specific dataset.
     """
@@ -81,4 +81,6 @@ class GazetteerAlias(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.alias} → {self.location.location} ({self.dataset_id or "general"})"
+        return (
+            f"{self.alias} → {self.location.location} ({self.dataset_id or 'general'})"
+        )

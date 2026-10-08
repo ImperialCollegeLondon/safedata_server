@@ -2,6 +2,7 @@ from django.contrib import admin
 
 from api.models import ServerMessage
 
+
 @admin.register(ServerMessage)
 class ServerMessageAdmin(admin.ModelAdmin):
     list_display = ("message", "updated_at")

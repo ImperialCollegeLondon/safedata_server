@@ -1,7 +1,6 @@
 """Tests for datasets.ingest: creating, updating, and validating datasets
 from safedata_validator JSON exports."""
 
-
 import pytest
 from django.contrib.gis.geos import Point
 
@@ -89,7 +88,13 @@ class TestIngestDatasetCore:
         """A failure partway through ingestion should roll back the whole
         thing - no orphaned Dataset row left behind."""
         data = base_dataset_json(
-            locations=[{"name": "Nonexistent Location", "new_location": False, "wkt_wgs84": "NOT WKT"}]
+            locations=[
+                {
+                    "name": "Nonexistent Location",
+                    "new_location": False,
+                    "wkt_wgs84": "NOT WKT",
+                }
+            ]
         )
 
         with pytest.raises(DatasetIngestError):
@@ -129,7 +134,9 @@ class TestIngestDatasetVersioning:
         survive the dataset being corrected/re-ingested."""
         dataset = ingest_dataset(base_dataset_json())
         camp_a = Gazetteer.objects.get(location="River Camp A")
-        GazetteerAlias.objects.create(location=camp_a, alias="Camp A Alt", dataset=dataset)
+        GazetteerAlias.objects.create(
+            location=camp_a, alias="Camp A Alt", dataset=dataset
+        )
 
         ingest_dataset(base_dataset_json(title="Updated Title"))
 
@@ -264,7 +271,9 @@ class TestIngestTaxa:
 class TestIngestLocations:
     def test_resolves_direct_gazetteer_match(self, db, sample_gazetteer):
         data = base_dataset_json(
-            locations=[{"name": "River Camp A", "new_location": False, "wkt_wgs84": None}]
+            locations=[
+                {"name": "River Camp A", "new_location": False, "wkt_wgs84": None}
+            ]
         )
 
         dataset = ingest_dataset(data)
@@ -278,10 +287,14 @@ class TestIngestLocations:
         # First ingest with no aliases, to get a real Dataset to scope the
         # alias to, then register the alias, then re-ingest referencing it.
         dataset = ingest_dataset(base_dataset_json())
-        GazetteerAlias.objects.create(location=camp_a, alias="Camp A Nickname", dataset=dataset)
+        GazetteerAlias.objects.create(
+            location=camp_a, alias="Camp A Nickname", dataset=dataset
+        )
 
         data = base_dataset_json(
-            locations=[{"name": "Camp A Nickname", "new_location": False, "wkt_wgs84": None}]
+            locations=[
+                {"name": "Camp A Nickname", "new_location": False, "wkt_wgs84": None}
+            ]
         )
         dataset = ingest_dataset(data)
 
@@ -290,10 +303,14 @@ class TestIngestLocations:
 
     def test_resolves_general_alias(self, db, sample_gazetteer):
         camp_b = Gazetteer.objects.get(location="River Camp B")
-        GazetteerAlias.objects.create(location=camp_b, alias="Camp B General", dataset=None)
+        GazetteerAlias.objects.create(
+            location=camp_b, alias="Camp B General", dataset=None
+        )
 
         data = base_dataset_json(
-            locations=[{"name": "Camp B General", "new_location": False, "wkt_wgs84": None}]
+            locations=[
+                {"name": "Camp B General", "new_location": False, "wkt_wgs84": None}
+            ]
         )
         dataset = ingest_dataset(data)
 
@@ -321,7 +338,11 @@ class TestIngestLocations:
     def test_invalid_wkt_raises(self, db, sample_gazetteer):
         data = base_dataset_json(
             locations=[
-                {"name": "Bad Geometry Site", "new_location": True, "wkt_wgs84": "NOT WKT"}
+                {
+                    "name": "Bad Geometry Site",
+                    "new_location": True,
+                    "wkt_wgs84": "NOT WKT",
+                }
             ]
         )
 

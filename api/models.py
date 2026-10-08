@@ -1,5 +1,6 @@
 from django.db import models
 
+
 class ServerMessage(models.Model):
     """
     A single, admin-editable message accessed via /api/message.

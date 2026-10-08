@@ -31,7 +31,7 @@ from api.views.taxa import (
 )
 
 app_name = "api"
- 
+
 urlpatterns = [
     path("docs/", api_docs, name="docs"),
     path("message/", ServerMessageView.as_view(), name="server-message"),
@@ -46,19 +46,52 @@ urlpatterns = [
     path("gazetteer/download/", gazetteer_download, name="gazetteer-download"),
     path("gazetteer/hash/", gazetteer_hash, name="gazetteer-hash"),
     path("gazetteer/upload/", GazetteerUploadView.as_view(), name="gazetteer-upload"),
-    path("gazetteer/aliases/download/", gazetteer_aliases_download, name="gazetteer-alias-download"),
-    path("gazetteer/aliases/hash/", gazetteer_aliases_hash, name="gazetteer-alias-hash"),
-    path("gazetteer/aliases/upload/", GazetteerAliasUploadView.as_view(), name="gazetteer-alias-upload"),
+    path(
+        "gazetteer/aliases/download/",
+        gazetteer_aliases_download,
+        name="gazetteer-alias-download",
+    ),
+    path(
+        "gazetteer/aliases/hash/", gazetteer_aliases_hash, name="gazetteer-alias-hash"
+    ),
+    path(
+        "gazetteer/aliases/upload/",
+        GazetteerAliasUploadView.as_view(),
+        name="gazetteer-alias-upload",
+    ),
     # URLs for downloading and uploading datasets:
     path("datasets/upload/", DatasetUploadView.as_view(), name="datasets-upload"),
-    path("datasets/index/download/", dataset_index_download, name="datasets-index-download"),
+    path(
+        "datasets/index/download/",
+        dataset_index_download,
+        name="datasets-index-download",
+    ),
     path("datasets/index/hash/", dataset_index_hash, name="datasets-index-hash"),
     # URL for retrieving metadata for a specific Zenodo record:
-    path("records/<int:zenodo_record_id>/", RecordMetadataView.as_view(), name="record-detail"),
-    path("concepts/<int:zenodo_concept_id>/", ConceptVersionsView.as_view(), name="concept-versions"),
+    path(
+        "records/<int:zenodo_record_id>/",
+        RecordMetadataView.as_view(),
+        name="record-detail",
+    ),
+    path(
+        "concepts/<int:zenodo_concept_id>/",
+        ConceptVersionsView.as_view(),
+        name="concept-versions",
+    ),
     # Taxa coverage endpoints:
-    path("taxon_coverage/gbif/", GlobalGbifTaxonCoverageView.as_view(), name="taxon-coverage-gbif"),
-    path("taxon_coverage/sequence/", GlobalSequenceTaxonCoverageView.as_view(), name="taxon-coverage-sequence"),
-    path("records/<int:zenodo_record_id>/taxa/", RecordTaxaView.as_view(), name="record-taxa"),
+    path(
+        "taxon_coverage/gbif/",
+        GlobalGbifTaxonCoverageView.as_view(),
+        name="taxon-coverage-gbif",
+    ),
+    path(
+        "taxon_coverage/sequence/",
+        GlobalSequenceTaxonCoverageView.as_view(),
+        name="taxon-coverage-sequence",
+    ),
+    path(
+        "records/<int:zenodo_record_id>/taxa/",
+        RecordTaxaView.as_view(),
+        name="record-taxa",
+    ),
 ]
- 

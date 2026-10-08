@@ -14,8 +14,10 @@ from .models import Gazetteer, GazetteerAlias
 class GazetteerIngestError(Exception):
     """Raised when a GeoJSON feature or file is malformed or fails validation."""
 
+
 class GazetteerAliasIngestError(Exception):
     """Raised when a gazetteer alias row or file is malformed or fails validation."""
+
 
 def ingest_gazetteer_entry(feature: dict[str, Any]) -> None:
     """Adds or edits a single Gazetteer row from one parsed GeoJSON Feature.
@@ -40,6 +42,7 @@ def ingest_gazetteer_entry(feature: dict[str, Any]) -> None:
             "geom_local": local_geometry,
         },
     )
+
 
 def ingest_multiple_gazetteer_entries(geojson: dict[str, Any]) -> None:
     """Adds or edits Gazetteer rows from a parsed GeoJSON FeatureCollection.
@@ -68,24 +71,22 @@ def ingest_multiple_gazetteer_entries(geojson: dict[str, Any]) -> None:
         for feature in features:
             ingest_gazetteer_entry(feature)
 
+
 def _get_location_name(feature: dict[str, Any]) -> str:
     properties = feature.get("properties") or {}
     location_name = properties.get("location")
 
     if not location_name:
-        raise GazetteerIngestError(
-            "Feature is missing a 'location' property."
-        )
+        raise GazetteerIngestError("Feature is missing a 'location' property.")
 
     return location_name
+
 
 def _get_geometry(feature: dict[str, Any], location_name: str) -> GEOSGeometry:
     geometry_data = feature.get("geometry")
 
     if not geometry_data:
-        raise GazetteerIngestError(
-            f"Feature '{location_name}' has no geometry."
-        )
+        raise GazetteerIngestError(f"Feature '{location_name}' has no geometry.")
 
     try:
         # GeoJSON is always WGS84 by spec (RFC 7946), so this is always
@@ -126,7 +127,6 @@ def ingest_gazetteer_alias_row(row: dict[str, str]) -> None:
 
     dataset = None
     if zenodo_record_id is not None:
-
         # This alias is for a specific dataset only (not global). We should only
         # include this alias if the corresponding dataset already exists.
         from datasets.models import Dataset
@@ -139,7 +139,7 @@ def ingest_gazetteer_alias_row(row: dict[str, str]) -> None:
                 f"(zenodo_record_id={zenodo_record_id}). Ingest that dataset first."
             ) from exc
 
-    alias, _ = GazetteerAlias.objects.update_or_create(
+    _ = GazetteerAlias.objects.update_or_create(
         dataset=dataset,
         alias=alias_name,
         defaults={"location": location},
@@ -166,7 +166,6 @@ def ingest_gazetteer_aliases_csv(csv_file: TextIOBase) -> None:
         )
 
     with transaction.atomic():
-
         row_count = 0
         for row in reader:
             ingest_gazetteer_alias_row(row)
