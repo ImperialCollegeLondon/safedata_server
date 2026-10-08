@@ -9,15 +9,14 @@ The response is a clean reconstruction from our normalized tables, not a
 replica of the original safedata_validator export.
 """
 
+from datetime import date as date_type
+
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from datasets.models import Dataset
-
-from datetime import date as date_type
-
-from django.http import Http404
 
 
 def _serialize_location(location) -> dict:
@@ -125,8 +124,7 @@ def _serialize_record(dataset: Dataset) -> dict:
             for t in dataset.taxa.all()
         ],
         "locations": [
-            _serialize_location(location)
-            for location in dataset.locations.all()
+            _serialize_location(location) for location in dataset.locations.all()
         ],
     }
 
@@ -161,7 +159,9 @@ def _version_status(dataset: Dataset, *, is_most_recent: bool) -> str:
     inserted private copy - is a client-side-only R concept and has no
     server-side equivalent.)
     """
-    is_embargoed = dataset.embargo_date is not None and dataset.embargo_date > date_type.today()
+    is_embargoed = (
+        dataset.embargo_date is not None and dataset.embargo_date > date_type.today()
+    )
     is_available = dataset.access == "Open" and not is_embargoed
 
     if not is_available:
@@ -177,12 +177,14 @@ class ConceptVersionsView(APIView):
     """
 
     def get(self, request, zenodo_concept_id, *args, **kwargs):
-        versions = Dataset.objects.filter(
-            zenodo_concept_id=zenodo_concept_id
-        ).order_by("-zenodo_record_id")
+        versions = Dataset.objects.filter(zenodo_concept_id=zenodo_concept_id).order_by(
+            "-zenodo_record_id"
+        )
 
         if not versions.exists():
-            raise Http404(f"No dataset found with zenodo_concept_id={zenodo_concept_id}.")
+            raise Http404(
+                f"No dataset found with zenodo_concept_id={zenodo_concept_id}."
+            )
 
         most_recent_id = versions.first().zenodo_record_id
 

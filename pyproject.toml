@@ -1,25 +1,26 @@
 [project]
-name = "safedata-server"
-version = "0.1.0"
+dependencies = [
+  "django>=6.0.8",
+  "django-filter>=26.1",
+  "djangorestframework>=3.17.2",
+  "gunicorn>=26.2.0",
+  "python-dotenv>=1.2.2",
+]
 description = "Add your description here"
+name = "safedata-server"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = [
-    "django>=6.0.8",
-    "django-filter>=26.1",
-    "djangorestframework>=3.17.2",
-    "gunicorn>=26.2.0",
-    "python-dotenv>=1.2.2",
-]
+version = "0.1.0"
 
 [dependency-groups]
 dev = [
-    "black>=26.5.1",
-    "django-stubs>=6.1.0",
-    "djangorestframework-stubs>=3.18.0",
-    "pytest>=9.1.1",
-    "pytest-django>=4.12.0",
-    "ruff>=0.16.1",
+  "black>=26.5.1",
+  "django-stubs>=6.1.0",
+  "djangorestframework-stubs>=3.18.0",
+  "pre-commit>=4.6.2",
+  "pytest>=9.1.1",
+  "pytest-django>=4.12.0",
+  "ruff>=0.16.1",
 ]
 
 [tool.pytest.ini_options]
@@ -31,3 +32,6 @@ plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
 
 [tool.django-stubs]
 django_settings_module = "config.settings"
+
+[tool.ruff.lint]
+ignore = ["DTZ011"] # Overly fussy warning about dates not being timezone

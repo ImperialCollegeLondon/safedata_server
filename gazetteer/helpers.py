@@ -15,6 +15,7 @@ def _current_gazetteer_geojson() -> str:
         fields=("location",),
     )
 
+
 def _current_aliases_csv() -> str:
     """Serialize all GazetteerAlias rows to CSV, matching the upload format."""
     buffer = io.StringIO()

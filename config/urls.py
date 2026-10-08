@@ -26,5 +26,4 @@ urlpatterns = [
     path("gazetteer/", include("gazetteer.urls")),
     path("datasets/", include("datasets.urls")),
     path("api/", include("api.urls", namespace="api")),
-
 ]
