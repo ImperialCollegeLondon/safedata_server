@@ -1,5 +1,4 @@
-"""Search API for the safedata package's data-discovery functions.
-"""
+"""Search API for the safedata package's data-discovery functions."""
 
 from datetime import date
 
@@ -73,7 +72,7 @@ class DatasetSearchView(APIView):
             queryset = self.get_queryset(request)
             queryset = _apply_common_filters(queryset, request)
         except DatasetSearchError as exc:
-            return Response({"error": str(exc)}, status=400)
+            return Response({"detail": str(exc)}, status=400)
 
         return Response(_serialize_results(queryset))
 
@@ -307,7 +306,9 @@ class SpatialSearchView(DatasetSearchView):
             )
 
         return Dataset.objects.filter(
-            Q(locations__gazetteer_location__geom_wgs84__intersects=query_geometry_wgs84)
+            Q(
+                locations__gazetteer_location__geom_wgs84__intersects=query_geometry_wgs84
+            )
             | Q(
                 locations__gazetteer_location__isnull=True,
                 locations__geom_wgs84__intersects=query_geometry_wgs84,
