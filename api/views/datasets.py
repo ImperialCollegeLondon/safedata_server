@@ -3,8 +3,8 @@
 import hashlib
 import json
 
-from django.urls import reverse
 from django.http import HttpResponse, JsonResponse
+from django.urls import reverse
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import IsAuthenticated
@@ -62,6 +62,9 @@ class DatasetUploadView(APIView):
             return Response({"detail": str(exc)}, status=400)
 
         return Response(
-            {"url": reverse("datasets:detail", args=[dataset.zenodo_record_id])},
+            {
+                "dataset_id": dataset.id,  # Only really used in testing
+                "url": reverse("datasets:detail", args=[dataset.zenodo_record_id]),
+            },
             status=200,
         )
