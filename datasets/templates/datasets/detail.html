@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-
 {% block title %}{{ dataset.title }} — safedata_server{% endblock %}
 
 {% block extra_style %}
@@ -15,20 +14,27 @@ th { color: #666; font-weight: normal; }
 a.back { color: #1a5fb4; text-decoration: none; font-size: 14px; }
 .stat { display: inline-block; margin-right: 1.5rem; font-size: 14px; }
 .stat strong { display: block; font-size: 20px; }
+.current-row { background-color: navajowhite; }
 {% endblock %}
 
 {% block content %}
 <a class="back" href="{% url 'datasets:list' %}">&larr; Back to datasets</a>
 
 <h1>{{ dataset.title }}</h1>
-<div class="meta">
+<!-- <div class="meta">
     {{ dataset.access }} &middot;
-    <a href="https://zenodo.org/records/{{ dataset.zenodo_record_id }}" target="_blank">
-        Zenodo record {{ dataset.zenodo_record_id }}
-    </a>
+    Zenodo record {{ dataset.zenodo_record_id }}
     (concept {{ dataset.zenodo_concept_id }}) &middot;
     Published {{ dataset.zenodo_publication_date|default:"—" }}
-</div>
+</div> -->
+
+<h2>Versions</h2>
+
+{% load render_table from django_tables2 %}
+{% render_table versions %}
+
+<h2>Description</h2>
+
 
 <p class="description">{{ dataset.description }}</p>
 
