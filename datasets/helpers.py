@@ -19,7 +19,7 @@ def _current_index_json() -> str:
             else None,
             "zenodo_concept_id": ds.zenodo_concept_id,
             "zenodo_record_id": ds.zenodo_record_id,
-            "dataset_access": ds.access,
+            "dataset_access": ds.access.lower(),
             "dataset_embargo": ds.embargo_date.isoformat() if ds.embargo_date else None,
             "dataset_title": ds.title,
         }
