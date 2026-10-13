@@ -1,42 +1,37 @@
 import json
 
-from .models import Dataset, DatasetAuthors, DatasetKeywords
+from .models import Dataset, DatasetAuthors, DatasetKeywords, DatasetFiles
 
 
 def _current_index_json() -> str:
+    """Serialise file level information across all datasets to JSON.
 
-    """Serialize a small subset of high-level metadata for each dataset's
-    latest version to JSON. Regenerated from live DB state on every request,
-    so it's always current.
+    Might be a clever way to do this with django serializers but that includes model
+    information and this is purely for export.
     """
-    datasets = (
-        Dataset.latest_versions()
-        .prefetch_related("authors", "keywords")
-        .order_by("-zenodo_publication_date")
-    )
- 
-    index = []
-    for dataset in datasets:
-        index.append(
+
+    index: list[dict] = []
+
+    for ds in Dataset.objects.all():
+        ds_dict = {
+            "publication_date": ds.zenodo_publication_date.isoformat()
+            if ds.zenodo_publication_date
+            else None,
+            "zenodo_concept_id": ds.zenodo_concept_id,
+            "zenodo_record_id": ds.zenodo_record_id,
+            "dataset_access": ds.access,
+            "dataset_embargo": ds.embargo_date.isoformat() if ds.embargo_date else None,
+            "dataset_title": ds.title,
+        }
+
+        ds_dict["files"] = [
             {
-                "zenodo_record_id": dataset.zenodo_record_id,
-                "zenodo_concept_id": dataset.zenodo_concept_id,
-                "title": dataset.title,
-                "authors": [
-                    author.name
-                    for author in DatasetAuthors.objects.filter(dataset=dataset)
-                ],
-                "keywords": [
-                    kw.keyword for kw in DatasetKeywords.objects.filter(dataset=dataset)
-                ],
-                "access": dataset.access,
-                "zenodo_publication_date": (
-                    dataset.zenodo_publication_date.isoformat()
-                    if dataset.zenodo_publication_date
-                    else None
-                ),
+                "checksum": f.checksum,
+                "filename": f.filename,
+                "filesize": f.filesize,
             }
-        )
- 
+            for f in ds.files.all()
+        ]
+        index.append(ds_dict)
+
     return json.dumps(index, indent=2)
- 
