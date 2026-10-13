@@ -1,6 +1,6 @@
 import json
 
-from .models import Dataset, DatasetAuthors, DatasetKeywords, DatasetFiles
+from .models import Dataset
 
 
 def _current_index_json() -> str:
