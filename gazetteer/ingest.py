@@ -185,12 +185,12 @@ def _get_alias_field(row: dict[str, str], field: str) -> str:
 
 
 def _parse_zenodo_record_id(raw_value: str | None) -> int | None:
-    if raw_value is None or raw_value.strip().lower() == "null":
+    if raw_value is None or raw_value.strip().lower() in ["null", "na"]:
         return None
 
     try:
         return int(raw_value)
     except ValueError as exc:
         raise GazetteerAliasIngestError(
-            f"Invalid zenodo_record_id: {raw_value!r} is not an integer or 'null'."
+            f"Invalid zenodo_record_id: {raw_value!r} is not an integer, 'null' or 'na'."
         ) from exc

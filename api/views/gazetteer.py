@@ -71,19 +71,19 @@ class GazetteerUploadView(APIView):
         uploaded_file = request.FILES.get("file")
         if uploaded_file is None:
             return Response(
-                {"error": "No file provided. Upload under the 'file' key."},
+                {"detail": "No file provided. Upload under the 'file' key."},
                 status=400,
             )
 
         try:
             geojson = json.load(uploaded_file)
         except json.JSONDecodeError as exc:
-            return Response({"error": f"Invalid JSON: {exc}"}, status=400)
+            return Response({"detail": f"Invalid JSON: {exc}"}, status=400)
 
         try:
             ingest_multiple_gazetteer_entries(geojson)
         except GazetteerIngestError as exc:
-            return Response({"error": str(exc)}, status=400)
+            return Response({"detail": str(exc)}, status=400)
 
         return Response({"status": "ok"}, status=200)
 
@@ -104,7 +104,7 @@ class GazetteerAliasUploadView(APIView):
         uploaded_file = request.FILES.get("file")
         if uploaded_file is None:
             return Response(
-                {"error": "No file provided. Upload under the 'file' key."},
+                {"detail": "No file provided. Upload under the 'file' key."},
                 status=400,
             )
 
@@ -115,6 +115,6 @@ class GazetteerAliasUploadView(APIView):
         try:
             ingest_gazetteer_aliases_csv(text_file)
         except GazetteerAliasIngestError as exc:
-            return Response({"error": str(exc)}, status=400)
+            return Response({"detail": str(exc)}, status=400)
 
         return Response({"status": "ok"}, status=200)

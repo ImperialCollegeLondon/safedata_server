@@ -178,7 +178,7 @@ class TestGazetteerUpload:
         )
 
         assert response.status_code == 400
-        assert "error" in response.json()
+        assert "detail" in response.json()
 
     def test_requires_a_file(self, api_client_with_token, db):
         response = api_client_with_token.post(
@@ -227,7 +227,7 @@ class TestAliasUpload:
         )
 
         assert response.status_code == 400
-        assert "error" in response.json()
+        assert "detail" in response.json()
         assert GazetteerAlias.objects.count() == 0
 
     def test_requires_a_file(self, api_client_with_token, sample_gazetteer):

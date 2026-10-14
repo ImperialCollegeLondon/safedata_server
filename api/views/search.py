@@ -73,7 +73,7 @@ class DatasetSearchView(APIView):
             queryset = self.get_queryset(request)
             queryset = _apply_common_filters(queryset, request)
         except DatasetSearchError as exc:
-            return Response({"error": str(exc)}, status=400)
+            return Response({"detail": str(exc)}, status=400)
 
         return Response(_serialize_results(queryset))
 

@@ -65,7 +65,7 @@ class TestDatasetUpload:
         )
 
         assert response.status_code == 400
-        assert "error" in response.json()
+        assert "detail" in response.json()
         assert Dataset.objects.count() == 0
 
     def test_rejects_invalid_json(self, api_client_with_token, db):
@@ -77,7 +77,7 @@ class TestDatasetUpload:
         )
 
         assert response.status_code == 400
-        assert "error" in response.json()
+        assert "detail" in response.json()
 
     def test_requires_a_file(self, api_client_with_token, db):
         response = api_client_with_token.post(

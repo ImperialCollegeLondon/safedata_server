@@ -4,6 +4,7 @@ import hashlib
 import json
 
 from django.http import HttpResponse, JsonResponse
+from django.urls import reverse
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import IsAuthenticated
@@ -46,18 +47,24 @@ class DatasetUploadView(APIView):
         uploaded_file = request.FILES.get("file")
         if uploaded_file is None:
             return Response(
-                {"error": "No file provided. Upload under the 'file' key."},
+                {"detail": "No file provided. Upload under the 'file' key."},
                 status=400,
             )
 
         try:
             data = json.load(uploaded_file)
         except json.JSONDecodeError as exc:
-            return Response({"error": f"Invalid JSON: {exc}"}, status=400)
+            return Response({"detail": f"Invalid JSON: {exc}"}, status=400)
 
         try:
             dataset = ingest_dataset(data)
         except DatasetIngestError as exc:
-            return Response({"error": str(exc)}, status=400)
+            return Response({"detail": str(exc)}, status=400)
 
-        return Response({"status": "ok", "dataset_id": dataset.id}, status=200)
+        return Response(
+            {
+                "dataset_id": dataset.id,  # Only really used in testing
+                "url": reverse("datasets:detail", args=[dataset.zenodo_record_id]),
+            },
+            status=200,
+        )
