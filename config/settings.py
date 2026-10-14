@@ -92,13 +92,13 @@ WSGI_APPLICATION = "config.wsgi.application"
 if sys.platform == "darwin":
     GDAL_LIBRARY_PATH = (
         subprocess.run(
-            ["brew", "--prefix", "gdal"], capture_output=True, text=True
+            ["brew", "--prefix", "gdal"], capture_output=True, text=True, check=False
         ).stdout.strip()
         + "/lib/libgdal.dylib"
     )
     GEOS_LIBRARY_PATH = (
         subprocess.run(
-            ["brew", "--prefix", "geos"], capture_output=True, text=True
+            ["brew", "--prefix", "geos"], capture_output=True, text=True, check=False
         ).stdout.strip()
         + "/lib/libgeos_c.dylib"
     )

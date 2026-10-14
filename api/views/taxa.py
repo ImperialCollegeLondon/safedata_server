@@ -8,7 +8,7 @@ from datasets.models import Dataset, Taxa
 
 
 def _serialize_gbif_coverage(queryset) -> dict:
-    """Merge GBIF taxa with globally-comparable taxon_id. Entries 
+    """Merge GBIF taxa with globally-comparable taxon_id. Entries
     with taxon_id == -1 (user-defined) have no identity to merge
     on, so each is kept as its own entry, identifiable only by name,
     hanging off its real parent_id.
@@ -51,7 +51,7 @@ def _serialize_gbif_coverage(queryset) -> dict:
 
 def _serialize_sequence_coverage(queryset) -> dict:
     """Group sequence-derived taxa into a global hierarchy using their
-    full ancestor name path resolved per-dataset since taxon_id/parent_id 
+    full ancestor name path resolved per-dataset since taxon_id/parent_id
     are only locally meaningful.
     Identically named paths across different datasets are merged into one
     node; synthetic taxon_id/parent_id values are assigned so the
@@ -70,19 +70,21 @@ def _serialize_sequence_coverage(queryset) -> dict:
         record_id = taxa_list[0].dataset.zenodo_record_id
         path_cache: dict[int, tuple] = {}
 
-        def resolve_path(taxon):
+        def resolve_path(taxon, local_by_id, path_cache):
             if taxon.taxon_id in path_cache:
                 return path_cache[taxon.taxon_id]
             if taxon.parent_id is None or taxon.parent_id not in local_by_id:
                 path = ((taxon.taxon_rank, taxon.taxon_name),)
             else:
-                parent_path = resolve_path(local_by_id[taxon.parent_id])
+                parent_path = resolve_path(
+                    local_by_id[taxon.parent_id], local_by_id, path_cache
+                )
                 path = parent_path + ((taxon.taxon_rank, taxon.taxon_name),)
             path_cache[taxon.taxon_id] = path
             return path
 
         for taxon in taxa_list:
-            path = resolve_path(taxon)
+            path = resolve_path(taxon, local_by_id, path_cache)
             node = nodes_by_path.setdefault(
                 path,
                 {
@@ -99,7 +101,9 @@ def _serialize_sequence_coverage(queryset) -> dict:
     entries = [
         {
             "taxon_id": path_to_id[path],
-            "parent_id": path_to_id[node["parent_path"]] if node["parent_path"] else None,
+            "parent_id": path_to_id[node["parent_path"]]
+            if node["parent_path"]
+            else None,
             "taxon_name": node["taxon_name"],
             "taxon_rank": node["taxon_rank"],
             "zenodo_record_ids": sorted(node["zenodo_record_ids"]),
