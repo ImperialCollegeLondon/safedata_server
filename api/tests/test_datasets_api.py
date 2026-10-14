@@ -31,6 +31,7 @@ class TestDatasetUpload:
 
         assert response.status_code == 200
         body = response.json()
+        assert body["status"] == "ok"
         assert Dataset.objects.filter(
             id=body["dataset_id"], title="Uploaded via API"
         ).exists()

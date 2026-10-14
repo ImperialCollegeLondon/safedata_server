@@ -2,7 +2,6 @@
 
 import json
 from datetime import date, datetime
-from pathlib import Path
 from typing import Any, cast
 
 from django.conf import settings
@@ -28,7 +27,6 @@ from .models import (
 
 class DatasetIngestError(Exception):
     """Raised when a dataset JSON export is malformed or fails validation."""
-
 
 
 def _require(data: dict[str, Any], key: str, *, context: str) -> Any:
@@ -78,7 +76,9 @@ def _dataset_fields_from_json(data: dict[str, Any]) -> dict[str, Any]:
         "zenodo_record_id": _require(zenodo_data, "id", context="dataset"),
         "zenodo_concept_id": _require(zenodo_data, "conceptrecid", context="dataset"),
         "zenodo_publication_date": _parse_date(
-            _require(zenodo_data.get("metadata", {}), "publication_date", context="dataset")
+            _require(
+                zenodo_data.get("metadata", {}), "publication_date", context="dataset"
+            )
         ),
         "zenodo_record_doi": _require(zenodo_data, "doi", context="dataset"),
         "zenodo_concept_doi": _require(zenodo_data, "conceptdoi", context="dataset"),
@@ -121,7 +121,9 @@ def _clear_dataset_children(dataset: Dataset) -> None:
     DatasetFunders.objects.filter(dataset=dataset).delete()
     DatasetPermits.objects.filter(dataset=dataset).delete()
     DatasetKeywords.objects.filter(dataset=dataset).delete()
-    DatasetWorksheets.objects.filter(dataset=dataset).delete()  # cascades to DatasetFields
+    DatasetWorksheets.objects.filter(
+        dataset=dataset
+    ).delete()  # cascades to DatasetFields
     Taxa.objects.filter(dataset=dataset).delete()
     Locations.objects.filter(dataset=dataset).delete()
     dataset.files.all().delete()
@@ -211,7 +213,9 @@ def _ingest_locations(dataset: Dataset, locations_data: list[dict[str, Any]]) ->
         if wkt:
             try:
                 geometry = GEOSGeometry(wkt, srid=4326)
-                local_geometry = geometry.transform(settings.GAZETTEER_LOCAL_EPSG, clone=True)
+                local_geometry = geometry.transform(
+                    settings.GAZETTEER_LOCAL_EPSG, clone=True
+                )
             except Exception as exc:
                 raise DatasetIngestError(
                     f"Location '{name}' has invalid wkt_wgs84: {exc}"
@@ -248,6 +252,7 @@ def _ingest_files(dataset: Dataset, data: dict[str, Any]) -> None:
             download_link=_require(links, "download", context="zenodo.files.links"),
         )
 
+
 def _resolve_gazetteer_location(dataset: Dataset, name: str) -> Gazetteer | None:
     """Resolve a dataset's location name against the global gazetteer.
 
@@ -264,7 +269,9 @@ def _resolve_gazetteer_location(dataset: Dataset, name: str) -> Gazetteer | None
     if dataset_alias is not None:
         return cast(Gazetteer, dataset_alias.location)
 
-    general_alias = GazetteerAlias.objects.filter(alias=name, dataset__isnull=True).first()
+    general_alias = GazetteerAlias.objects.filter(
+        alias=name, dataset__isnull=True
+    ).first()
     if general_alias is not None:
         return cast(Gazetteer, general_alias.location)
 
@@ -302,8 +309,9 @@ def ingest_dataset(data: dict[str, Any]) -> Dataset:
         project_ids = data.get("project_ids") or []
         # Prevent duplicate project_ids:
         if len(project_ids) != len(set(project_ids)):
-            raise DatasetIngestError(f"project_ids contains duplicate values: {project_ids}")
-
+            raise DatasetIngestError(
+                f"project_ids contains duplicate values: {project_ids}"
+            )
 
         for author in data.get("authors") or []:
             DatasetAuthors.objects.create(

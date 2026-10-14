@@ -89,12 +89,18 @@ WSGI_APPLICATION = "config.wsgi.application"
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 if sys.platform == "darwin":
-    GDAL_LIBRARY_PATH = subprocess.run(
-        ["brew", "--prefix", "gdal"], capture_output=True, text=True
-    ).stdout.strip() + "/lib/libgdal.dylib"
-    GEOS_LIBRARY_PATH = subprocess.run(
-        ["brew", "--prefix", "geos"], capture_output=True, text=True
-    ).stdout.strip() + "/lib/libgeos_c.dylib"
+    GDAL_LIBRARY_PATH = (
+        subprocess.run(
+            ["brew", "--prefix", "gdal"], capture_output=True, text=True, check=False
+        ).stdout.strip()
+        + "/lib/libgdal.dylib"
+    )
+    GEOS_LIBRARY_PATH = (
+        subprocess.run(
+            ["brew", "--prefix", "geos"], capture_output=True, text=True, check=False
+        ).stdout.strip()
+        + "/lib/libgeos_c.dylib"
+    )
 
 
 DATABASES = {

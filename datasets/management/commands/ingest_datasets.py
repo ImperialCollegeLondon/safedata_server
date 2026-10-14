@@ -30,7 +30,9 @@ class Command(BaseCommand):
 
         json_files = sorted(directory.rglob("*.json"))
         if not json_files:
-            self.stdout.write(self.style.WARNING(f"No .json files found in {directory}."))
+            self.stdout.write(
+                self.style.WARNING(f"No .json files found in {directory}.")
+            )
             return
 
         succeeded = []

@@ -139,7 +139,7 @@ def ingest_gazetteer_alias_row(row: dict[str, str]) -> None:
                 f"(zenodo_record_id={zenodo_record_id}). Ingest that dataset first."
             ) from exc
 
-    alias, _ = GazetteerAlias.objects.update_or_create(
+    _ = GazetteerAlias.objects.update_or_create(
         dataset=dataset,
         alias=alias_name,
         defaults={"location": location},

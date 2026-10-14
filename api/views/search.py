@@ -2,13 +2,14 @@
 
 from datetime import date
 
-from datasets.models import Dataset, Taxa
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from django.db.models import Q, QuerySet
-from gazetteer.models import Gazetteer
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from datasets.models import Dataset, Taxa
+from gazetteer.models import Gazetteer
 
 
 class DatasetSearchError(Exception):
