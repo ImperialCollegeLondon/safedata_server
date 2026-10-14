@@ -13,9 +13,7 @@ class Dataset(models.Model):
     complete Dataset entry in the database.
     """
 
-    zenodo_record_id: models.IntegerField = models.IntegerField(
-        unique=True
-    )
+    zenodo_record_id: models.IntegerField = models.IntegerField(unique=True)
     zenodo_concept_id: models.IntegerField = models.IntegerField()
     zenodo_publication_date: models.DateField = models.DateField()
     zenodo_record_doi = models.CharField(max_length=255)
@@ -35,8 +33,12 @@ class Dataset(models.Model):
     temporal_extent_end: models.DateField = models.DateField(null=True, blank=True)
     latitudinal_extent_min: models.FloatField = models.FloatField(null=True, blank=True)
     latitudinal_extent_max: models.FloatField = models.FloatField(null=True, blank=True)
-    longitudinal_extent_min: models.FloatField = models.FloatField(null=True, blank=True)
-    longitudinal_extent_max: models.FloatField = models.FloatField(null=True, blank=True)
+    longitudinal_extent_min: models.FloatField = models.FloatField(
+        null=True, blank=True
+    )
+    longitudinal_extent_max: models.FloatField = models.FloatField(
+        null=True, blank=True
+    )
 
     @classmethod
     def latest_versions(cls) -> models.QuerySet["Dataset"]:
@@ -82,7 +84,9 @@ class DatasetAuthors(models.Model):
         Dataset, on_delete=models.CASCADE, related_name="authors"
     )
     name: models.CharField = models.CharField(max_length=255)
-    affiliation: models.CharField = models.CharField(max_length=500, null=True, blank=True)
+    affiliation: models.CharField = models.CharField(
+        max_length=500, null=True, blank=True
+    )
     email: models.EmailField = models.EmailField(null=True, blank=True)
     orcid: models.CharField = models.CharField(max_length=50, null=True, blank=True)
 
@@ -170,10 +174,18 @@ class DatasetFields(models.Model):
     levels: models.TextField = models.TextField(null=True, blank=True)
     range: models.TextField = models.TextField(null=True, blank=True)
 
-    taxon_field: models.CharField = models.CharField(max_length=255, null=True, blank=True)
-    taxon_name: models.CharField = models.CharField(max_length=255, null=True, blank=True)
-    interaction_field: models.CharField = models.CharField(max_length=255, null=True, blank=True)
-    interaction_name: models.CharField = models.CharField(max_length=255, null=True, blank=True)
+    taxon_field: models.CharField = models.CharField(
+        max_length=255, null=True, blank=True
+    )
+    taxon_name: models.CharField = models.CharField(
+        max_length=255, null=True, blank=True
+    )
+    interaction_field: models.CharField = models.CharField(
+        max_length=255, null=True, blank=True
+    )
+    interaction_name: models.CharField = models.CharField(
+        max_length=255, null=True, blank=True
+    )
 
     col_idx: models.IntegerField = models.IntegerField()
 
@@ -184,7 +196,7 @@ class DatasetFields(models.Model):
 class Taxa(models.Model):
     """One taxon referenced by a dataset.
 
-    Unifies GBIF-sourced and sequence-sourced taxa into a single table. 
+    Unifies GBIF-sourced and sequence-sourced taxa into a single table.
     taxon_id and parent_id are identifiers used only within this dataset's
     own taxon index.
     """
@@ -196,20 +208,32 @@ class Taxa(models.Model):
         (SOURCE_SEQUENCE, "Sequence"),
     ]
 
-    dataset: models.ForeignKey = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name="taxa")
+    dataset: models.ForeignKey = models.ForeignKey(
+        Dataset, on_delete=models.CASCADE, related_name="taxa"
+    )
     source: models.CharField = models.CharField(max_length=20, choices=SOURCE_CHOICES)
 
     taxon_id: models.IntegerField = models.IntegerField()
     parent_id: models.IntegerField = models.IntegerField(null=True, blank=True)
     taxon_name: models.CharField = models.CharField(max_length=500)
-    taxon_rank: models.CharField = models.CharField(max_length=100, null=True, blank=True)
-    taxon_status: models.CharField = models.CharField(max_length=100, null=True, blank=True)
-    worksheet_name: models.CharField = models.CharField(max_length=255, null=True, blank=True)
+    taxon_rank: models.CharField = models.CharField(
+        max_length=100, null=True, blank=True
+    )
+    taxon_status: models.CharField = models.CharField(
+        max_length=100, null=True, blank=True
+    )
+    worksheet_name: models.CharField = models.CharField(
+        max_length=255, null=True, blank=True
+    )
 
     # Only populated for source == "sequence". These are at the taxon-group level in the source JSON,
     # but duplicated per-row here for simplicity.
-    database_name: models.CharField = models.CharField(max_length=255, null=True, blank=True)
-    database_version: models.CharField = models.CharField(max_length=100, null=True, blank=True)
+    database_name: models.CharField = models.CharField(
+        max_length=255, null=True, blank=True
+    )
+    database_version: models.CharField = models.CharField(
+        max_length=100, null=True, blank=True
+    )
     database_link: models.URLField = models.URLField(null=True, blank=True)
 
     def __str__(self):
@@ -237,7 +261,9 @@ class Locations(models.Model):
         on_delete=models.SET_NULL,
         related_name="dataset_usages",
     )
-    geom_wgs84: gis_models.GeometryField = gis_models.GeometryField(srid=4326, null=True, blank=True)
+    geom_wgs84: gis_models.GeometryField = gis_models.GeometryField(
+        srid=4326, null=True, blank=True
+    )
     geom_local: gis_models.GeometryField = gis_models.GeometryField(
         srid=settings.GAZETTEER_LOCAL_EPSG, null=True, blank=True
     )
