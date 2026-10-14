@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     "django.contrib.gis",
     "rest_framework",
     "rest_framework.authtoken",
+    "django_tables2",
     "gazetteer",
     "datasets",
     "api",
