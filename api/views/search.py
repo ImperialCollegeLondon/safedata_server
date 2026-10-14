@@ -1,15 +1,15 @@
-"""Search API for the safedata package's data-discovery functions.
-"""
+"""Search API for the safedata package's data-discovery functions."""
 
 from datetime import date
 
-from datasets.models import Dataset, Taxa
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from django.db.models import Q, QuerySet
-from gazetteer.models import Gazetteer
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from datasets.models import Dataset, Taxa
+from gazetteer.models import Gazetteer
 
 
 class DatasetSearchError(Exception):
@@ -307,7 +307,9 @@ class SpatialSearchView(DatasetSearchView):
             )
 
         return Dataset.objects.filter(
-            Q(locations__gazetteer_location__geom_wgs84__intersects=query_geometry_wgs84)
+            Q(
+                locations__gazetteer_location__geom_wgs84__intersects=query_geometry_wgs84
+            )
             | Q(
                 locations__gazetteer_location__isnull=True,
                 locations__geom_wgs84__intersects=query_geometry_wgs84,

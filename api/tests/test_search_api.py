@@ -11,7 +11,8 @@ from datasets.models import (
 class TestSharedRestriction:
     def test_ids_restricts_to_given_records(self, client, dataset_a, dataset_b):
         response = client.get(
-            reverse("api:search-text"), {"text": "forest", "ids": dataset_b.zenodo_record_id}
+            reverse("api:search-text"),
+            {"text": "forest", "ids": dataset_b.zenodo_record_id},
         )
         # dataset_a matches "forest" in its title, but ids restricts to
         # dataset_b only, which doesn't match "forest" at all.
@@ -21,8 +22,8 @@ class TestSharedRestriction:
         Dataset.objects.create(
             zenodo_record_id=6000001,
             zenodo_concept_id=6000001,
-        zenodo_record_doi="10.5281/zenodo.0000000",
-        zenodo_concept_doi="10.5281/zenodo.0000000",
+            zenodo_record_doi="10.5281/zenodo.0000000",
+            zenodo_concept_doi="10.5281/zenodo.0000000",
             zenodo_publication_date="2020-01-01",
             title="Outdated version",
             description="",
@@ -32,8 +33,8 @@ class TestSharedRestriction:
         Dataset.objects.create(
             zenodo_record_id=6000002,
             zenodo_concept_id=6000001,
-        zenodo_record_doi="10.5281/zenodo.0000000",
-        zenodo_concept_doi="10.5281/zenodo.0000000",
+            zenodo_record_doi="10.5281/zenodo.0000000",
+            zenodo_concept_doi="10.5281/zenodo.0000000",
             zenodo_publication_date="2021-01-01",
             title="Newer version",
             description="",
@@ -41,13 +42,17 @@ class TestSharedRestriction:
             validator_version="3.1.1",
         )
 
-        response = client.get(reverse("api:search-text"), {"text": "version", "most_recent": ""})
+        response = client.get(
+            reverse("api:search-text"), {"text": "version", "most_recent": ""}
+        )
 
         assert response.json()["count"] == 1
         assert response.json()["entries"][0]["zenodo_record_id"] == 6000002
 
     def test_invalid_ids_returns_400(self, client, dataset_a):
-        response = client.get(reverse("api:search-text"), {"text": "forest", "ids": "not-a-number"})
+        response = client.get(
+            reverse("api:search-text"), {"text": "forest", "ids": "not-a-number"}
+        )
         assert response.status_code == 400
 
 
@@ -55,7 +60,10 @@ class TestTextSearch:
     def test_matches_title(self, client, dataset_a, dataset_b):
         response = client.get(reverse("api:search-text"), {"text": "forest"})
         assert response.json()["count"] == 1
-        assert response.json()["entries"][0]["zenodo_record_id"] == dataset_a.zenodo_record_id
+        assert (
+            response.json()["entries"][0]["zenodo_record_id"]
+            == dataset_a.zenodo_record_id
+        )
 
     def test_matches_field_description(self, client, dataset_a, dataset_b):
         response = client.get(reverse("api:search-text"), {"text": "temperature"})
@@ -70,7 +78,10 @@ class TestAuthorSearch:
     def test_partial_name_match(self, client, dataset_a, dataset_b):
         response = client.get(reverse("api:search-authors"), {"name": "Ewers"})
         assert response.json()["count"] == 1
-        assert response.json()["entries"][0]["zenodo_record_id"] == dataset_a.zenodo_record_id
+        assert (
+            response.json()["entries"][0]["zenodo_record_id"]
+            == dataset_a.zenodo_record_id
+        )
 
     def test_no_match_returns_empty(self, client, dataset_a):
         response = client.get(reverse("api:search-authors"), {"name": "Nobody"})
@@ -81,7 +92,10 @@ class TestDateSearch:
     def test_single_date_within_extent(self, client, dataset_a, dataset_b):
         response = client.get(reverse("api:search-dates"), {"date": "2014-06-01"})
         assert response.json()["count"] == 1
-        assert response.json()["entries"][0]["zenodo_record_id"] == dataset_a.zenodo_record_id
+        assert (
+            response.json()["entries"][0]["zenodo_record_id"]
+            == dataset_a.zenodo_record_id
+        )
 
     def test_intersect_match_type(self, client, dataset_a, dataset_b):
         response = client.get(
@@ -89,7 +103,9 @@ class TestDateSearch:
         )
         assert response.json()["count"] == 2
 
-    def test_contain_match_type_matches_spanning_dataset(self, client, dataset_a, dataset_b):
+    def test_contain_match_type_matches_spanning_dataset(
+        self, client, dataset_a, dataset_b
+    ):
         # dataset_a spans all of 2014. A narrow query range inside that
         # extent should match under "contain" semantics.
         response = client.get(
@@ -97,10 +113,14 @@ class TestDateSearch:
             {"date": "2014-03-01,2014-06-01", "match_type": "contain"},
         )
         assert response.json()["count"] == 1
-        assert response.json()["entries"][0]["zenodo_record_id"] == dataset_a.zenodo_record_id
+        assert (
+            response.json()["entries"][0]["zenodo_record_id"]
+            == dataset_a.zenodo_record_id
+        )
 
-
-    def test_contain_match_type_excludes_partial_overlap(self, client, dataset_a, dataset_b):
+    def test_contain_match_type_excludes_partial_overlap(
+        self, client, dataset_a, dataset_b
+    ):
         # This range starts inside dataset_a's extent but extends past it -
         # an "intersect" search would match, but "contain" requires the
         # dataset's own extent to fully span the query range, so it should not.
@@ -152,15 +172,21 @@ class TestTaxaSearch:
 class TestSpatialSearch:
     def test_location_match_unbuffered(self, client, dataset_a, dataset_b):
         # Test that a location match without a buffer returns the correct dataset.
-        response = client.get(reverse("api:search-spatial"), {"location": "River Camp A"})
+        response = client.get(
+            reverse("api:search-spatial"), {"location": "River Camp A"}
+        )
         assert response.json()["count"] == 1
-        assert response.json()["entries"][0]["zenodo_record_id"] == dataset_a.zenodo_record_id
+        assert (
+            response.json()["entries"][0]["zenodo_record_id"]
+            == dataset_a.zenodo_record_id
+        )
 
     def test_location_with_buffer_finds_nearby(self, client, dataset_a, dataset_b):
         # River Camp A and River Camp B are a few hundred metres apart - a
         # large buffer should catch both datasets.
         response = client.get(
-            reverse("api:search-spatial"), {"location": "River Camp A", "distance": "5000"}
+            reverse("api:search-spatial"),
+            {"location": "River Camp A", "distance": "5000"},
         )
         assert response.json()["count"] == 2
 

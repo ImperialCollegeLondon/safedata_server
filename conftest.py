@@ -1,4 +1,3 @@
-
 import pytest
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
@@ -28,11 +27,12 @@ def sample_gazetteer(db):
         geom_local="POINT (569100.22 525083.00)",
     )
 
+
 @pytest.fixture
 def api_client_with_token(db):
     user = User.objects.create_user(username="uploader", password="testpass123")
     token = Token.objects.create(user=user)
- 
+
     client = APIClient()
     client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
     return client
@@ -148,8 +148,8 @@ def dataset_with_gbif_taxa(db):
         worksheet_name="Ant morph 1",
     )
     return dataset
- 
- 
+
+
 @pytest.fixture
 def second_dataset_sharing_gbif_taxon(db):
     """A second dataset that references the same real GBIF taxon
@@ -187,8 +187,8 @@ def second_dataset_sharing_gbif_taxon(db):
         worksheet_name="Ant morph A",
     )
     return dataset
- 
- 
+
+
 @pytest.fixture
 def dataset_with_sequence_taxa(db):
     dataset = Dataset.objects.create(
@@ -213,8 +213,8 @@ def dataset_with_sequence_taxa(db):
         database_name="UNITE",
     )
     return dataset
- 
- 
+
+
 @pytest.fixture
 def second_dataset_sharing_sequence_rank_name(db):
     """A second dataset whose sequence taxa share the same

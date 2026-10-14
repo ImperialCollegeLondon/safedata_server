@@ -4,7 +4,6 @@ from .models import Dataset, DatasetAuthors, DatasetKeywords
 
 
 def _current_index_json() -> str:
-
     """Serialize a small subset of high-level metadata for each dataset's
     latest version to JSON. Regenerated from live DB state on every request,
     so it's always current.
@@ -14,7 +13,7 @@ def _current_index_json() -> str:
         .prefetch_related("authors", "keywords")
         .order_by("-zenodo_publication_date")
     )
- 
+
     index = []
     for dataset in datasets:
         index.append(
@@ -37,6 +36,5 @@ def _current_index_json() -> str:
                 ),
             }
         )
- 
+
     return json.dumps(index, indent=2)
- 
