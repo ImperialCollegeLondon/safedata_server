@@ -14,7 +14,7 @@ from gazetteer.ingest import (
     GazetteerAliasIngestError,
     GazetteerIngestError,
     ingest_gazetteer_aliases_csv,
-    ingest_multiple_gazetteer_entries,
+    update_gazetteer,
 )
 
 
@@ -59,8 +59,7 @@ def gazetteer_aliases_hash(request):
 class GazetteerUploadView(APIView):
     """Authenticated upload of a new gazetteer GeoJSON file.
 
-    Adds/edits Gazetteer rows by location name. Never deletes existing rows,
-    even if they're absent from the uploaded file.
+    Adds / edits Gazetteer rows by location name.
     """
 
     authentication_classes = (TokenAuthentication,)
@@ -76,12 +75,9 @@ class GazetteerUploadView(APIView):
             )
 
         try:
-            geojson = json.load(uploaded_file)
+            update_gazetteer(uploaded_file)
         except json.JSONDecodeError as exc:
             return Response({"detail": f"Invalid JSON: {exc}"}, status=400)
-
-        try:
-            ingest_multiple_gazetteer_entries(geojson)
         except GazetteerIngestError as exc:
             return Response({"detail": str(exc)}, status=400)
 
