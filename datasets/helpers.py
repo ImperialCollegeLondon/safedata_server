@@ -1,5 +1,10 @@
+import hashlib
 import json
+from typing import Any
 
+from django.core.files.storage import FileSystemStorage
+
+from .ingest import ingest_dataset
 from .models import Dataset, DatasetFiles
 
 
@@ -36,3 +41,27 @@ def _current_index_json() -> str:
     ]
 
     return json.dumps(index, indent=2)
+
+
+def _dataset_upload(file: Any) -> Dataset:
+
+    # Allow json.JSONDecodeErrors to fall back to calling function
+    data = json.load(file)
+
+    # Allow ingest_dataset to fall back with DatasetIngestError
+    dataset = ingest_dataset(data)
+
+    # Generate index after update
+    index_bytes: bytes = _current_index_json().encode()
+
+    # Update the resource files
+    FileSystemStorage().open("index.json", "wb").write(index_bytes)
+
+    with FileSystemStorage().open("hashes.json", "r") as hashfile:
+        hashdata = json.load(hashfile)
+        hashdata["index"] = hashlib.md5(index_bytes).hexdigest()
+
+    with FileSystemStorage().open("hashes.json", "w") as hashfile:
+        json.dump(hashdata, hashfile)
+
+    return dataset

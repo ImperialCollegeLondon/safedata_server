@@ -11,8 +11,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from datasets.helpers import _current_index_json
-from datasets.ingest import DatasetIngestError, ingest_dataset
+from datasets.helpers import _current_index_json, _dataset_upload
+from datasets.ingest import DatasetIngestError
 
 
 def dataset_index_download(request):
@@ -52,13 +52,8 @@ class DatasetUploadView(APIView):
             )
 
         try:
-            data = json.load(uploaded_file)
-        except json.JSONDecodeError as exc:
-            return Response({"detail": f"Invalid JSON: {exc}"}, status=400)
-
-        try:
-            dataset = ingest_dataset(data)
-        except DatasetIngestError as exc:
+            dataset = _dataset_upload(uploaded_file)
+        except (json.JSONDecodeError, DatasetIngestError) as exc:
             return Response({"detail": str(exc)}, status=400)
 
         return Response(
