@@ -52,14 +52,14 @@ def _dataset_upload(file: Any) -> Dataset:
     dataset = ingest_dataset(data)
 
     # Generate index after update
-    index: str = _current_index_json()
+    index_bytes: bytes = _current_index_json().encode()
 
     # Update the resource files
-    FileSystemStorage().open("index.json", "wb").write(index)
+    FileSystemStorage().open("index.json", "wb").write(index_bytes)
 
     with FileSystemStorage().open("hashes.json", "r") as hashfile:
         hashdata = json.load(hashfile)
-        hashdata["gazetteer"] = hashlib.md5(index.encode()).hexdigest()
+        hashdata["index"] = hashlib.md5(index_bytes).hexdigest()
 
     with FileSystemStorage().open("hashes.json", "w") as hashfile:
         json.dump(hashdata, hashfile)
