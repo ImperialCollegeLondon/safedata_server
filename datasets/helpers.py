@@ -43,13 +43,13 @@ def _current_index_json() -> str:
     return json.dumps(index, indent=2)
 
 
-def _dataset_upload(file: Any) -> None:
+def _dataset_upload(file: Any) -> Dataset:
 
     # Allow json.JSONDecodeErrors to fall back to calling function
     data = json.load(file)
 
     # Allow ingest_dataset to fall back with DatasetIngestError
-    ingest_dataset(data)
+    dataset = ingest_dataset(data)
 
     # Generate index after update
     index: str = _current_index_json()
@@ -63,3 +63,5 @@ def _dataset_upload(file: Any) -> None:
 
     with FileSystemStorage().open("hashes.json", "w") as hashfile:
         json.dump(hashdata, hashfile)
+
+    return dataset
