@@ -1,5 +1,4 @@
 import hashlib
-import io
 import json
 
 from django.http import HttpResponse, JsonResponse
@@ -13,8 +12,8 @@ from gazetteer.helpers import _current_aliases_csv, _current_gazetteer_geojson
 from gazetteer.ingest import (
     GazetteerAliasIngestError,
     GazetteerIngestError,
-    ingest_gazetteer_aliases_csv,
     ingest_multiple_gazetteer_entries,
+    update_gazetteer_aliases,
 )
 
 
@@ -108,13 +107,9 @@ class GazetteerAliasUploadView(APIView):
                 status=400,
             )
 
-        # csv.DictReader needs a text-mode file; uploaded files arrive as
-        # bytes, so wrap and decode.
-        text_file = io.TextIOWrapper(uploaded_file.file, encoding="utf-8")
-
         try:
-            ingest_gazetteer_aliases_csv(text_file)
-        except GazetteerAliasIngestError as exc:
+            update_gazetteer_aliases(uploaded_file.file)
+        except (UnicodeEncodeError, GazetteerAliasIngestError) as exc:
             return Response({"detail": str(exc)}, status=400)
 
         return Response({"status": "ok"}, status=200)
