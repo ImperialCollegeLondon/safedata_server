@@ -1,40 +1,38 @@
 import json
 
-from .models import Dataset, DatasetAuthors, DatasetKeywords
+from .models import Dataset, DatasetFiles
 
 
 def _current_index_json() -> str:
-    """Serialize a small subset of high-level metadata for each dataset's
-    latest version to JSON. Regenerated from live DB state on every request,
-    so it's always current.
-    """
-    datasets = (
-        Dataset.latest_versions()
-        .prefetch_related("authors", "keywords")
-        .order_by("-zenodo_publication_date")
-    )
+    """Serialise file level information across all datasets to JSON.
 
-    index = []
-    for dataset in datasets:
-        index.append(
-            {
-                "zenodo_record_id": dataset.zenodo_record_id,
-                "zenodo_concept_id": dataset.zenodo_concept_id,
-                "title": dataset.title,
-                "authors": [
-                    author.name
-                    for author in DatasetAuthors.objects.filter(dataset=dataset)
-                ],
-                "keywords": [
-                    kw.keyword for kw in DatasetKeywords.objects.filter(dataset=dataset)
-                ],
-                "access": dataset.access,
-                "zenodo_publication_date": (
-                    dataset.zenodo_publication_date.isoformat()
-                    if dataset.zenodo_publication_date
-                    else None
-                ),
-            }
-        )
+    The content is repetitive, but is structured to minimise the client side processing
+    in `safedata`.
+    """
+
+    index: list[dict] = []
+    latest_version_ids = [
+        v[0] for v in Dataset.latest_versions().values_list("zenodo_record_id")
+    ]
+
+    index = [
+        {
+            "publication_date": file.dataset.zenodo_publication_date.isoformat()
+            if file.dataset.zenodo_publication_date
+            else None,
+            "zenodo_concept_id": file.dataset.zenodo_concept_id,
+            "zenodo_record_id": file.dataset.zenodo_record_id,
+            "dataset_access": file.dataset.access.lower(),
+            "dataset_embargo": file.dataset.embargo_date.isoformat()
+            if file.dataset.embargo_date
+            else None,
+            "dataset_title": file.dataset.title,
+            "most_recent": file.dataset.zenodo_record_id in latest_version_ids,
+            "checksum": file.checksum,
+            "filename": file.filename,
+            "filesize": file.filesize,
+        }
+        for file in DatasetFiles.objects.all()
+    ]
 
     return json.dumps(index, indent=2)
