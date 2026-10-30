@@ -234,6 +234,7 @@ def update_gazetteer_aliases(file: Any) -> None:
             raise GazetteerAliasIngestError("CSV file contains no data rows.")
 
     # Update the resource files
+    file.seek(0)
     contents = file.read()
     FileSystemStorage().open("location_aliases.csv", "wb").write(contents)
 
