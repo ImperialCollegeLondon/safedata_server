@@ -111,10 +111,15 @@ Copy the example file and fill in real values:
 cp .env.example .env
 ```
 
-| Variable | Description |
-|---|---|
-| `GAZETTEER_LOCAL_EPSG` | EPSG code for the deployment's local projected CRS (e.g. `32650` for UTM Zone 50N — used for accurate distance/area calculations and spatial buffering). Get this right for your field site region; it cannot be safely guessed. |
-| `DJANGO_SECRET_KEY` | A random secret string for Django's cryptographic signing. Generate one with `python -c "import secrets; print(secrets.token_urlsafe(50))"`. |
+| Variable | Required | Description |
+|---|---|---|
+| `GAZETTEER_LOCAL_EPSG` | yes | EPSG code for the deployment's local projected CRS (e.g. `32650` for UTM Zone 50N), used for distance and buffer calculations. |
+| `DJANGO_SECRET_KEY` | yes | Django's signing key. There is no default, so the app won't start without it. Generate one with `python -c "import secrets; print(secrets.token_urlsafe(50))"`. Never reuse a key from another environment, and never commit it. |
+| `DJANGO_DEBUG` | no | Set to `1` for local development. Anything else (or unset) means off. Never enable this in production, because it shows stack traces to visitors. |
+| `DJANGO_ALLOWED_HOSTS` | production | Comma-separated hostnames/IPs the site is served on. |
+| `DJANGO_HTTPS` | no | Set to `1` only once the site is served over HTTPS. It turns on secure cookies and makes Django trust nginx's `X-Forwarded-Proto` header. |
+
+For local development, a `.env` containing `GAZETTEER_LOCAL_EPSG`, a throwaway `DJANGO_SECRET_KEY` and `DJANGO_DEBUG=1` is enough. The test suite also needs `DJANGO_SECRET_KEY` to be set.
 
 `GDAL_LIBRARY_PATH` / `GEOS_LIBRARY_PATH` are resolved automatically at
 runtime on macOS via `brew --prefix`, so you shouldn't need to set these
@@ -179,6 +184,7 @@ There are two ways to get data into the system: the **web UI** (for a
 person, in a browser, logged in) and the **API** (for scripts, tools, or
 the `safedata` R package).
 
+
 ### Web UI
 
 All upload pages require being logged in (`@login_required` — the same
@@ -204,8 +210,18 @@ GeoJSON upload are both all-or-nothing — if any part of the file fails,
 nothing from that file is saved. The same is true of the aliases CSV
 upload. Fix the file and re-upload; there's no partial state to clean up.
 
+**Load order.** Load the gazetteer first, then datasets, then aliases.
+Dataset locations are matched against the gazetteer, and the aliases
+file is rejected in full if any row references a dataset that isn't
+loaded yet.
+
 ### API
 
 All API endpoints are under `/api/`, with full reference documentation
 — authentication, uploading, downloading, search, records, and taxon
 identity notes — available at `/api/docs/` once the server is running.
+
+
+## 4. Deployment
+
+Deployment setup is detailed in `docs/deployment.MD`.
