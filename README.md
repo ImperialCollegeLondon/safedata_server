@@ -224,4 +224,4 @@ identity notes — available at `/api/docs/` once the server is running.
 
 ## 4. Deployment
 
-Deployment setup is detailed in `docs/deployment.MD`.
+Deployment setup is detailed in `docs/deployment.md`.
