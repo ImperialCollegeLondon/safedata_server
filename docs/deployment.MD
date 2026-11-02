@@ -220,7 +220,7 @@ sudo nginx -t && sudo systemctl reload nginx
 Open the site in a browser. Check the home page, and check that `/admin/` is
 styled.
 
-## 7. HTTPS (not yet run on this server)
+## 7. HTTPS
 
 Until this is done, admin logins, upload sessions and API tokens travel
 unencrypted. Only use throwaway accounts until HTTPS is on.
