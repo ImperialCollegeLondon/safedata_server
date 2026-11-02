@@ -1,11 +1,14 @@
 """Ingestion logic for updating the Gazetteer from an uploaded GeoJSON file."""
 
 import csv
+import hashlib
+import json
 from io import TextIOBase
 from typing import Any
 
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
+from django.core.files.storage import FileSystemStorage
 from django.db import transaction
 
 from .models import Gazetteer, GazetteerAlias
@@ -194,3 +197,114 @@ def _parse_zenodo_record_id(raw_value: str | None) -> int | None:
         raise GazetteerAliasIngestError(
             f"Invalid zenodo_record_id: {raw_value!r} is not an integer, 'null' or 'na'."
         ) from exc
+
+
+def update_gazetteer(file: Any) -> None:
+    """Updates the gazetteer data from an uploaded file.
+
+    The function takes the incoming file data and:
+    1. checks it can be parsed as a GeoJSON FeatureCollection,
+    2. checks that the data can be used to update Gazetteer,
+    3. updates the rows of the Gazetteer model, and
+    4. saves the original input file to the local resources directory.
+
+    Args:
+        geojson: A parsed GeoJSON FeatureCollection.
+
+    Raises:
+        GazetteerIngestError: if the file is not a valid FeatureCollection,
+            or any feature fails ingestion.
+    """
+
+    # Allow json.JSONDecodeErrors to fall back to calling function
+    geojson = json.load(file)
+
+    if geojson.get("type") != "FeatureCollection":
+        raise GazetteerIngestError(
+            "Expected a GeoJSON FeatureCollection, got "
+            f"{geojson.get('type', 'unknown')!r}."
+        )
+
+    features = geojson.get("features", [])
+    if not features:
+        raise GazetteerIngestError("FeatureCollection contains no features.")
+
+    # Process the incoming data into a dictionary, keyed by location name, of update
+    # dictionaries for the Gazetteer model
+    incoming_data = dict([_process_feature(ft) for ft in features])
+    known_names = Gazetteer.objects.all().values_list("location", flat=True)
+
+    if not set(incoming_data.keys()).issuperset(known_names):
+        raise GazetteerIngestError(
+            "Incomplete gazetteer uploaded - does not include all known features."
+        )
+
+    # Wrap this in a transaction so that if the update fails, the data rolls back
+    # and the user can fix that entry in their json file and re-upload the whole file.
+    #
+    # NOTE: Tried to do this with bulk create on pre-prepared Gazetteer objects but it
+    #       cause 500 errors - couldn't see why. The code to do this is still here,
+    #       commented out, in case we can fix it.
+    #
+    with transaction.atomic():
+        # Gazetteer.objects.bulk_create(
+        #     incoming_data.values(),
+        #     update_conflicts=True,
+        #     update_fields=["geom_local", "geom_wgs84"],
+        # )
+        for ft in incoming_data.values():
+            Gazetteer.objects.update_or_create(**ft)
+
+        # Update the resource files
+        contents = file.read()
+        FileSystemStorage().open("gazetteer.geojson", "wb").write(contents)
+
+        with FileSystemStorage().open("hashes.json", "r") as hashfile:
+            hashdata = json.load(hashfile)
+            hashdata["gazetteer"] = hashlib.md5(contents).hexdigest()
+
+        with FileSystemStorage().open("hashes.json", "w") as hashfile:
+            json.dump(hashdata, hashfile)
+
+
+# def _process_feature(feature: dict[str, Any]) -> tuple[str, Gazetteer]:
+def _process_feature(feature: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    """Run validation and processing on a GeoJSON feature.
+
+    Returns a tuple containing the location name and a Gazetteer object for insertion.
+    """
+
+    properties = feature.get("properties") or {}
+    location_name = properties.get("location")
+
+    if not location_name:
+        raise GazetteerIngestError("Feature is missing a 'location' property.")
+
+    geometry_data = feature.get("geometry")
+
+    if not geometry_data:
+        raise GazetteerIngestError(f"Feature '{location_name}' has no geometry.")
+
+    try:
+        # GeoJSON is always WGS84 by spec (RFC 7946), so this is always
+        # SRID 4326 regardless of what the file's CRS member (if any) claims.
+        geometry = GEOSGeometry(str(geometry_data).replace("'", '"'), srid=4326)
+    except Exception as exc:
+        raise GazetteerIngestError(
+            f"Feature '{location_name}' has invalid geometry: {exc}"
+        ) from exc
+
+    # Get the geometry in the local projection
+    local_geometry = geometry.transform(settings.GAZETTEER_LOCAL_EPSG, clone=True)
+
+    # return location_name, Gazetteer(
+    #     location=location_name,
+    #     geom_wgs84=geometry,
+    #     geom_local=local_geometry,
+    # )
+
+    return location_name, {
+        "location": location_name,
+        "geom_wgs84": geometry,
+        "geom_local": local_geometry,
+    }
