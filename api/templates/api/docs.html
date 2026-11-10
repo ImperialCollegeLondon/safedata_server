@@ -83,6 +83,24 @@ curl -X POST http://127.0.0.1:8000/api/datasets/upload/ \
     file, to avoid unnecessary transfers.
 </p>
 
+<h2>Server status and message</h2>
+<p>No authentication required.</p>
+<table>
+    <thead><tr><th>Endpoint</th><th>Returns</th></tr></thead>
+    <tbody>
+        <tr><td><code>GET /api/message/</code></td><td>A liveness check plus an optional notice for clients to show on load</td></tr>
+    </tbody>
+</table>
+<p>
+    Any successful response confirms the server is up, so clients such as
+    <code>safedata</code> can use this as a handshake when they load.
+    <code>message</code> is <code>null</code> when no notice is set. Admins
+    set the text in the Django admin under "Server messages".
+</p>
+<pre><code>{"status": "ok", "message": null}
+
+{"status": "ok", "message": "Datasets published before 2025 were checked using earlier versions of the safedata_validator and may have minor formatting and metadata issues that are now corrected before publication."}</code></pre>
+
 <h2>Searching datasets</h2>
 <p>
     Six search endpoints, matching the query types supported by the
