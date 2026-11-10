@@ -9,8 +9,6 @@ from api.views.docs import api_docs
 from api.views.gazetteer import (
     GazetteerAliasUploadView,
     GazetteerUploadView,
-    gazetteer_aliases_download,
-    gazetteer_aliases_hash,
     gazetteer_download,
     gazetteer_hash,
 )
@@ -46,14 +44,6 @@ urlpatterns = [
     path("gazetteer/download/", gazetteer_download, name="gazetteer-download"),
     path("gazetteer/hash/", gazetteer_hash, name="gazetteer-hash"),
     path("gazetteer/upload/", GazetteerUploadView.as_view(), name="gazetteer-upload"),
-    path(
-        "gazetteer/aliases/download/",
-        gazetteer_aliases_download,
-        name="gazetteer-alias-download",
-    ),
-    path(
-        "gazetteer/aliases/hash/", gazetteer_aliases_hash, name="gazetteer-alias-hash"
-    ),
     path(
         "gazetteer/aliases/upload/",
         GazetteerAliasUploadView.as_view(),

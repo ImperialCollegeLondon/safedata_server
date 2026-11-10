@@ -8,7 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from gazetteer.helpers import _current_aliases_csv, _current_gazetteer_geojson
+from gazetteer.helpers import _current_gazetteer_geojson
 from gazetteer.ingest import (
     GazetteerAliasIngestError,
     GazetteerIngestError,
@@ -33,23 +33,6 @@ def gazetteer_hash(request):
     whether their local copy is stale, without downloading the full file.
     """
     content = _current_gazetteer_geojson()
-    md5 = hashlib.md5(content.encode("utf-8")).hexdigest()
-
-    return JsonResponse({"md5": md5})
-
-
-def gazetteer_aliases_download(request):
-    """Serve the current gazetteer aliases as a downloadable CSV file."""
-    content = _current_aliases_csv()
-
-    response = HttpResponse(content, content_type="text/csv")
-    response["Content-Disposition"] = 'attachment; filename="location_aliases.csv"'
-    return response
-
-
-def gazetteer_aliases_hash(request):
-    """Return the MD5 hash of the current aliases file."""
-    content = _current_aliases_csv()
     md5 = hashlib.md5(content.encode("utf-8")).hexdigest()
 
     return JsonResponse({"md5": md5})
