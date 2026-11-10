@@ -22,59 +22,6 @@ class GazetteerAliasIngestError(Exception):
     """Raised when a gazetteer alias row or file is malformed or fails validation."""
 
 
-def ingest_gazetteer_entry(feature: dict[str, Any]) -> None:
-    """Adds or edits a single Gazetteer row from one parsed GeoJSON Feature.
-
-    Args:
-        feature: A parsed GeoJSON Feature. Must have a "location" property
-            (the site name) and a geometry.
-
-    Raises:
-        GazetteerIngestError: if the feature is missing a "location"
-            property or a valid geometry.
-    """
-    location_name = _get_location_name(feature)
-    geometry = _get_geometry(feature, location_name=location_name)
-
-    local_geometry = geometry.transform(settings.GAZETTEER_LOCAL_EPSG, clone=True)
-
-    Gazetteer.objects.update_or_create(
-        location=location_name,
-        defaults={
-            "geom_wgs84": geometry,
-            "geom_local": local_geometry,
-        },
-    )
-
-
-def ingest_multiple_gazetteer_entries(geojson: dict[str, Any]) -> None:
-    """Adds or edits Gazetteer rows from a parsed GeoJSON FeatureCollection.
-
-    Args:
-        geojson: A parsed GeoJSON FeatureCollection.
-
-    Raises:
-        GazetteerIngestError: if the file is not a valid FeatureCollection,
-            or any feature fails ingestion.
-    """
-    if geojson.get("type") != "FeatureCollection":
-        raise GazetteerIngestError(
-            "Expected a GeoJSON FeatureCollection, got "
-            f"{geojson.get('type', 'unknown')!r}."
-        )
-
-    features = geojson.get("features", [])
-    if not features:
-        raise GazetteerIngestError("FeatureCollection contains no features.")
-
-    # Wrap this in a transaction so that if any of the locations fail, no
-    # entries are added and the user can fix that entry in their json file
-    # and re-upload the whole file.
-    with transaction.atomic():
-        for feature in features:
-            ingest_gazetteer_entry(feature)
-
-
 def _get_location_name(feature: dict[str, Any]) -> str:
     properties = feature.get("properties") or {}
     location_name = properties.get("location")
@@ -241,17 +188,8 @@ def update_gazetteer(file: Any) -> None:
 
     # Wrap this in a transaction so that if the update fails, the data rolls back
     # and the user can fix that entry in their json file and re-upload the whole file.
-    #
-    # NOTE: Tried to do this with bulk create on pre-prepared Gazetteer objects but it
-    #       cause 500 errors - couldn't see why. The code to do this is still here,
-    #       commented out, in case we can fix it.
-    #
+
     with transaction.atomic():
-        # Gazetteer.objects.bulk_create(
-        #     incoming_data.values(),
-        #     update_conflicts=True,
-        #     update_fields=["geom_local", "geom_wgs84"],
-        # )
         for ft in incoming_data.values():
             Gazetteer.objects.update_or_create(**ft)
 

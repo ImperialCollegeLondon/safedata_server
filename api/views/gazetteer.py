@@ -9,34 +9,13 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from gazetteer.helpers import _current_aliases_csv, _current_gazetteer_geojson
+from gazetteer.helpers import _current_aliases_csv
 from gazetteer.ingest import (
     GazetteerAliasIngestError,
     GazetteerIngestError,
     ingest_gazetteer_aliases_csv,
     update_gazetteer,
 )
-
-
-def gazetteer_download(request):
-    """Serve the current gazetteer as a downloadable GeoJSON file."""
-    content = _current_gazetteer_geojson()
-
-    response = HttpResponse(content, content_type="application/geo+json")
-    response["Content-Disposition"] = 'attachment; filename="gazetteer.geojson"'
-    return response
-
-
-def gazetteer_hash(request):
-    """Return the MD5 hash of the current gazetteer file.
-
-    Downstream tools (e.g. the safedata R package) use this to check
-    whether their local copy is stale, without downloading the full file.
-    """
-    content = _current_gazetteer_geojson()
-    md5 = hashlib.md5(content.encode("utf-8")).hexdigest()
-
-    return JsonResponse({"md5": md5})
 
 
 def gazetteer_aliases_download(request):
