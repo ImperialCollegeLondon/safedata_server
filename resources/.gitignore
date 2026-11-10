@@ -1,0 +1,4 @@
+# Ignore resource files created by app
+gazetteer.geojson
+index.json
+location_aliases.csv
