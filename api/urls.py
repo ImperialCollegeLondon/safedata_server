@@ -1,10 +1,6 @@
 from django.urls import path
 
-from api.views.datasets import (
-    DatasetUploadView,
-    dataset_index_download,
-    dataset_index_hash,
-)
+from api.views.datasets import DatasetUploadView
 from api.views.docs import api_docs
 from api.views.gazetteer import (
     GazetteerAliasUploadView,
@@ -59,14 +55,8 @@ urlpatterns = [
         GazetteerAliasUploadView.as_view(),
         name="gazetteer-alias-upload",
     ),
-    # URLs for downloading and uploading datasets:
+    # URLs for uploading datasets:
     path("datasets/upload/", DatasetUploadView.as_view(), name="datasets-upload"),
-    path(
-        "datasets/index/download/",
-        dataset_index_download,
-        name="datasets-index-download",
-    ),
-    path("datasets/index/hash/", dataset_index_hash, name="datasets-index-hash"),
     # URL for retrieving metadata for a specific Zenodo record:
     path(
         "records/<int:zenodo_record_id>/",

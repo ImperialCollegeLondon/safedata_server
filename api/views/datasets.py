@@ -1,9 +1,7 @@
-"""API endpoints to deal with downloading and uploading dataset information."""
+"""API endpoints to deal with uploading dataset information."""
 
-import hashlib
 import json
 
-from django.http import HttpResponse, JsonResponse
 from django.urls import reverse
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.parsers import MultiPartParser
@@ -11,25 +9,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from datasets.helpers import _current_index_json, _dataset_upload
+from datasets.helpers import _dataset_upload
 from datasets.ingest import DatasetIngestError
-
-
-def dataset_index_download(request):
-    """Serve the current dataset index as a downloadable JSON file."""
-    content = _current_index_json()
-
-    response = HttpResponse(content, content_type="application/json")
-    response["Content-Disposition"] = 'attachment; filename="index.json"'
-    return response
-
-
-def dataset_index_hash(request):
-    """Return the MD5 hash of the current dataset index."""
-    content = _current_index_json()
-    md5 = hashlib.md5(content.encode("utf-8")).hexdigest()
-
-    return JsonResponse({"md5": md5})
 
 
 class DatasetUploadView(APIView):
