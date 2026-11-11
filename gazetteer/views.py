@@ -9,7 +9,7 @@ from django.shortcuts import redirect, render
 from .ingest import (
     GazetteerAliasIngestError,
     GazetteerIngestError,
-    ingest_multiple_gazetteer_entries,
+    update_gazetteer,
     update_gazetteer_aliases,
 )
 
@@ -44,8 +44,7 @@ def _handle_gazetteer_upload(request):
         return
 
     try:
-        data = json.load(uploaded_file)
-        ingest_multiple_gazetteer_entries(data)
+        update_gazetteer(uploaded_file)
     except (json.JSONDecodeError, GazetteerIngestError) as exc:
         messages.error(request, f"Gazetteer upload failed: {exc}")
         return

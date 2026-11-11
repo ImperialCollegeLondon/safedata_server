@@ -1,17 +1,8 @@
 from django.urls import path
 
-from api.views.datasets import (
-    DatasetUploadView,
-    dataset_index_download,
-    dataset_index_hash,
-)
+from api.views.datasets import DatasetUploadView
 from api.views.docs import api_docs
-from api.views.gazetteer import (
-    GazetteerAliasUploadView,
-    GazetteerUploadView,
-    gazetteer_download,
-    gazetteer_hash,
-)
+from api.views.gazetteer import GazetteerAliasUploadView, GazetteerUploadView
 from api.views.message import ServerMessageView
 from api.views.records import ConceptVersionsView, RecordMetadataView
 from api.views.search import (
@@ -41,22 +32,14 @@ urlpatterns = [
     path("search/taxa/", TaxaSearchView.as_view(), name="search-taxa"),
     path("search/spatial/", SpatialSearchView.as_view(), name="search-spatial"),
     # URLs for downloading and uploading datasets and gazetteer locations:
-    path("gazetteer/download/", gazetteer_download, name="gazetteer-download"),
-    path("gazetteer/hash/", gazetteer_hash, name="gazetteer-hash"),
     path("gazetteer/upload/", GazetteerUploadView.as_view(), name="gazetteer-upload"),
     path(
         "gazetteer/aliases/upload/",
         GazetteerAliasUploadView.as_view(),
         name="gazetteer-alias-upload",
     ),
-    # URLs for downloading and uploading datasets:
+    # URLs for uploading datasets:
     path("datasets/upload/", DatasetUploadView.as_view(), name="datasets-upload"),
-    path(
-        "datasets/index/download/",
-        dataset_index_download,
-        name="datasets-index-download",
-    ),
-    path("datasets/index/hash/", dataset_index_hash, name="datasets-index-hash"),
     # URL for retrieving metadata for a specific Zenodo record:
     path(
         "records/<int:zenodo_record_id>/",

@@ -22,59 +22,6 @@ class GazetteerAliasIngestError(Exception):
     """Raised when a gazetteer alias row or file is malformed or fails validation."""
 
 
-def ingest_gazetteer_entry(feature: dict[str, Any]) -> None:
-    """Adds or edits a single Gazetteer row from one parsed GeoJSON Feature.
-
-    Args:
-        feature: A parsed GeoJSON Feature. Must have a "location" property
-            (the site name) and a geometry.
-
-    Raises:
-        GazetteerIngestError: if the feature is missing a "location"
-            property or a valid geometry.
-    """
-    location_name = _get_location_name(feature)
-    geometry = _get_geometry(feature, location_name=location_name)
-
-    local_geometry = geometry.transform(settings.GAZETTEER_LOCAL_EPSG, clone=True)
-
-    Gazetteer.objects.update_or_create(
-        location=location_name,
-        defaults={
-            "geom_wgs84": geometry,
-            "geom_local": local_geometry,
-        },
-    )
-
-
-def ingest_multiple_gazetteer_entries(geojson: dict[str, Any]) -> None:
-    """Adds or edits Gazetteer rows from a parsed GeoJSON FeatureCollection.
-
-    Args:
-        geojson: A parsed GeoJSON FeatureCollection.
-
-    Raises:
-        GazetteerIngestError: if the file is not a valid FeatureCollection,
-            or any feature fails ingestion.
-    """
-    if geojson.get("type") != "FeatureCollection":
-        raise GazetteerIngestError(
-            "Expected a GeoJSON FeatureCollection, got "
-            f"{geojson.get('type', 'unknown')!r}."
-        )
-
-    features = geojson.get("features", [])
-    if not features:
-        raise GazetteerIngestError("FeatureCollection contains no features.")
-
-    # Wrap this in a transaction so that if any of the locations fail, no
-    # entries are added and the user can fix that entry in their json file
-    # and re-upload the whole file.
-    with transaction.atomic():
-        for feature in features:
-            ingest_gazetteer_entry(feature)
-
-
 def _get_location_name(feature: dict[str, Any]) -> str:
     properties = feature.get("properties") or {}
     location_name = properties.get("location")
@@ -215,3 +162,106 @@ def update_gazetteer_aliases(file: Any) -> None:
 
         with FileSystemStorage().open("hashes.json", "w") as hashfile:
             json.dump(hashdata, hashfile)
+
+
+def update_gazetteer(file: Any) -> None:
+    """Updates the gazetteer data from an uploaded file.
+
+    The function takes the incoming file data and:
+    1. checks it can be parsed as a GeoJSON FeatureCollection,
+    2. checks that the data can be used to update Gazetteer,
+    3. updates the rows of the Gazetteer model, and
+    4. saves the original input file to the local resources directory.
+
+    Args:
+        geojson: A parsed GeoJSON FeatureCollection.
+
+    Raises:
+        GazetteerIngestError: if the file is not a valid FeatureCollection,
+            or any feature fails ingestion.
+    """
+
+    # Allow json.JSONDecodeErrors to fall back to calling function
+    geojson = json.load(file)
+
+    if geojson.get("type") != "FeatureCollection":
+        raise GazetteerIngestError(
+            "Expected a GeoJSON FeatureCollection, got "
+            f"{geojson.get('type', 'unknown')!r}."
+        )
+
+    features = geojson.get("features", [])
+    if not features:
+        raise GazetteerIngestError("FeatureCollection contains no features.")
+
+    # Process the incoming data into a dictionary, keyed by location name, of update
+    # dictionaries for the Gazetteer model
+    incoming_data = dict([_process_feature(ft) for ft in features])
+    known_names = Gazetteer.objects.all().values_list("location", flat=True)
+
+    if not set(incoming_data.keys()).issuperset(known_names):
+        raise GazetteerIngestError(
+            "Incomplete gazetteer uploaded - does not include all known features."
+        )
+
+    # Wrap this in a transaction so that if the update fails, the data rolls back
+    # and the user can fix that entry in their json file and re-upload the whole file.
+
+    with transaction.atomic():
+        for ft in incoming_data.values():
+            Gazetteer.objects.update_or_create(**ft)
+
+        # Update the resource files
+        file.seek(0)
+        contents = file.read()
+        FileSystemStorage().open("gazetteer.geojson", "wb").write(contents)
+
+        with FileSystemStorage().open("hashes.json", "r") as hashfile:
+            hashdata = json.load(hashfile)
+            hashdata["gazetteer"] = hashlib.md5(contents).hexdigest()
+
+        with FileSystemStorage().open("hashes.json", "w") as hashfile:
+            json.dump(hashdata, hashfile)
+
+
+# def _process_feature(feature: dict[str, Any]) -> tuple[str, Gazetteer]:
+def _process_feature(feature: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    """Run validation and processing on a GeoJSON feature.
+
+    Returns a tuple containing the location name and a Gazetteer object for insertion.
+    """
+
+    properties = feature.get("properties") or {}
+    location_name = properties.get("location")
+
+    if not location_name:
+        raise GazetteerIngestError("Feature is missing a 'location' property.")
+
+    geometry_data = feature.get("geometry")
+
+    if not geometry_data:
+        raise GazetteerIngestError(f"Feature '{location_name}' has no geometry.")
+
+    try:
+        # GeoJSON is always WGS84 by spec (RFC 7946), so this is always
+        # SRID 4326 regardless of what the file's CRS member (if any) claims.
+        geometry = GEOSGeometry(str(geometry_data).replace("'", '"'), srid=4326)
+    except Exception as exc:
+        raise GazetteerIngestError(
+            f"Feature '{location_name}' has invalid geometry: {exc}"
+        ) from exc
+
+    # Get the geometry in the local projection
+    local_geometry = geometry.transform(settings.GAZETTEER_LOCAL_EPSG, clone=True)
+
+    # return location_name, Gazetteer(
+    #     location=location_name,
+    #     geom_wgs84=geometry,
+    #     geom_local=local_geometry,
+    # )
+
+    return location_name, {
+        "location": location_name,
+        "geom_wgs84": geometry,
+        "geom_local": local_geometry,
+    }
