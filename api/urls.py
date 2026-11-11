@@ -7,8 +7,6 @@ from api.views.gazetteer import (
     GazetteerUploadView,
     gazetteer_aliases_download,
     gazetteer_aliases_hash,
-    gazetteer_download,
-    gazetteer_hash,
 )
 from api.views.message import ServerMessageView
 from api.views.records import ConceptVersionsView, RecordMetadataView
@@ -39,8 +37,6 @@ urlpatterns = [
     path("search/taxa/", TaxaSearchView.as_view(), name="search-taxa"),
     path("search/spatial/", SpatialSearchView.as_view(), name="search-spatial"),
     # URLs for downloading and uploading datasets and gazetteer locations:
-    path("gazetteer/download/", gazetteer_download, name="gazetteer-download"),
-    path("gazetteer/hash/", gazetteer_hash, name="gazetteer-hash"),
     path("gazetteer/upload/", GazetteerUploadView.as_view(), name="gazetteer-upload"),
     path(
         "gazetteer/aliases/download/",
