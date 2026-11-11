@@ -1,38 +1,17 @@
-import hashlib
-import io
 import json
 
-from django.http import HttpResponse, JsonResponse
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from gazetteer.helpers import _current_aliases_csv
 from gazetteer.ingest import (
     GazetteerAliasIngestError,
     GazetteerIngestError,
-    ingest_gazetteer_aliases_csv,
     update_gazetteer,
+    update_gazetteer_aliases,
 )
-
-
-def gazetteer_aliases_download(request):
-    """Serve the current gazetteer aliases as a downloadable CSV file."""
-    content = _current_aliases_csv()
-
-    response = HttpResponse(content, content_type="text/csv")
-    response["Content-Disposition"] = 'attachment; filename="location_aliases.csv"'
-    return response
-
-
-def gazetteer_aliases_hash(request):
-    """Return the MD5 hash of the current aliases file."""
-    content = _current_aliases_csv()
-    md5 = hashlib.md5(content.encode("utf-8")).hexdigest()
-
-    return JsonResponse({"md5": md5})
 
 
 class GazetteerUploadView(APIView):
@@ -83,13 +62,9 @@ class GazetteerAliasUploadView(APIView):
                 status=400,
             )
 
-        # csv.DictReader needs a text-mode file; uploaded files arrive as
-        # bytes, so wrap and decode.
-        text_file = io.TextIOWrapper(uploaded_file.file, encoding="utf-8")
-
         try:
-            ingest_gazetteer_aliases_csv(text_file)
-        except GazetteerAliasIngestError as exc:
+            update_gazetteer_aliases(uploaded_file.file)
+        except (UnicodeEncodeError, GazetteerAliasIngestError) as exc:
             return Response({"detail": str(exc)}, status=400)
 
         return Response({"status": "ok"}, status=200)

@@ -3,7 +3,7 @@
 import csv
 import hashlib
 import json
-from io import TextIOBase
+from io import TextIOWrapper
 from typing import Any
 
 from django.conf import settings
@@ -96,35 +96,6 @@ def ingest_gazetteer_alias_row(row: dict[str, str]) -> None:
     )
 
 
-def ingest_gazetteer_aliases_csv(csv_file: TextIOBase) -> None:
-    """Adds or edits GazetteerAlias rows from a parsed CSV file.
-
-    Args:
-        csv_file: A file-like object (text mode) containing the alias CSV,
-            with columns "zenodo_record_id", "location", "alias".
-
-    Raises:
-        GazetteerAliasIngestError: if the file has no rows, or any row
-            fails ingestion.
-    """
-    reader = csv.DictReader(csv_file)
-
-    expected_columns = {"zenodo_record_id", "location", "alias"}
-    if reader.fieldnames is None or not expected_columns.issubset(reader.fieldnames):
-        raise GazetteerAliasIngestError(
-            f"CSV must have columns {expected_columns}, got {reader.fieldnames}."
-        )
-
-    with transaction.atomic():
-        row_count = 0
-        for row in reader:
-            ingest_gazetteer_alias_row(row)
-            row_count += 1
-
-        if row_count == 0:
-            raise GazetteerAliasIngestError("CSV file contains no data rows.")
-
-
 def _get_alias_field(row: dict[str, str], field: str) -> str:
     value = row.get(field)
 
@@ -144,6 +115,53 @@ def _parse_zenodo_record_id(raw_value: str | None) -> int | None:
         raise GazetteerAliasIngestError(
             f"Invalid zenodo_record_id: {raw_value!r} is not an integer, 'null' or 'na'."
         ) from exc
+
+
+def update_gazetteer_aliases(file: Any) -> None:
+    """Adds or edits GazetteerAlias rows from a parsed CSV file.
+
+    Args:
+        csv_file: A file-like object (text mode) containing the alias CSV,
+            with columns "zenodo_record_id", "location", "alias".
+
+    Raises:
+        GazetteerAliasIngestError: if the file has no rows, or any row
+            fails ingestion.
+    """
+
+    # csv.DictReader needs a text-mode file; uploaded files arrive as
+    # bytes, so wrap and decode.
+    csv_file = TextIOWrapper(file, encoding="utf-8")
+
+    # Parse CSV contents
+    reader = csv.DictReader(csv_file)
+
+    expected_columns = {"zenodo_record_id", "location", "alias"}
+    if reader.fieldnames is None or not expected_columns.issubset(reader.fieldnames):
+        raise GazetteerAliasIngestError(
+            f"CSV must have columns {expected_columns}, got {reader.fieldnames}."
+        )
+
+    with transaction.atomic():
+        row_count = 0
+        for row in reader:
+            ingest_gazetteer_alias_row(row)
+            row_count += 1
+
+        if row_count == 0:
+            raise GazetteerAliasIngestError("CSV file contains no data rows.")
+
+        # Update the resource files
+        file.seek(0)
+        contents = file.read()
+        FileSystemStorage().open("location_aliases.csv", "wb").write(contents)
+
+        with FileSystemStorage().open("hashes.json", "r") as hashfile:
+            hashdata = json.load(hashfile)
+            hashdata["location_aliases"] = hashlib.md5(contents).hexdigest()
+
+        with FileSystemStorage().open("hashes.json", "w") as hashfile:
+            json.dump(hashdata, hashfile)
 
 
 def update_gazetteer(file: Any) -> None:
@@ -194,6 +212,7 @@ def update_gazetteer(file: Any) -> None:
             Gazetteer.objects.update_or_create(**ft)
 
         # Update the resource files
+        file.seek(0)
         contents = file.read()
         FileSystemStorage().open("gazetteer.geojson", "wb").write(contents)
 

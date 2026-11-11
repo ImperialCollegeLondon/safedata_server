@@ -2,12 +2,7 @@ from django.urls import path
 
 from api.views.datasets import DatasetUploadView
 from api.views.docs import api_docs
-from api.views.gazetteer import (
-    GazetteerAliasUploadView,
-    GazetteerUploadView,
-    gazetteer_aliases_download,
-    gazetteer_aliases_hash,
-)
+from api.views.gazetteer import GazetteerAliasUploadView, GazetteerUploadView
 from api.views.message import ServerMessageView
 from api.views.records import ConceptVersionsView, RecordMetadataView
 from api.views.search import (
@@ -38,14 +33,6 @@ urlpatterns = [
     path("search/spatial/", SpatialSearchView.as_view(), name="search-spatial"),
     # URLs for downloading and uploading datasets and gazetteer locations:
     path("gazetteer/upload/", GazetteerUploadView.as_view(), name="gazetteer-upload"),
-    path(
-        "gazetteer/aliases/download/",
-        gazetteer_aliases_download,
-        name="gazetteer-alias-download",
-    ),
-    path(
-        "gazetteer/aliases/hash/", gazetteer_aliases_hash, name="gazetteer-alias-hash"
-    ),
     path(
         "gazetteer/aliases/upload/",
         GazetteerAliasUploadView.as_view(),
