@@ -1,1 +1,5 @@
-{"gazetteer": null, "location_aliases": null, "index": null}
+{
+    "gazetteer.geojson": null,
+    "location_aliases.csv": null,
+    "index.json": null
+}
