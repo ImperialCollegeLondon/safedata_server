@@ -1,46 +1,62 @@
 # safedata_server
 
-A web application providing a searchable database of metadata for datasets
-published using the [`safedata_validator`](https://github.com/ImperialCollegeLondon/safedata_validator)
+The `safedata_server` web application provides a data discovery and reuse interface to
+a collection of datasets validated and published on Zenodo using
+[`safedata_validator`](https://github.com/ImperialCollegeLondon/safedata_validator)
 program.
 
 ## 1. Overview
 
-When a dataset is published using `safedata_validator`:
+The broad `safedata` system is used to maintain and publish a collection of validated
+and consistently formatted datasets with metadata requirements to aid data discovery and
+reuse. It is designed around maintaining heterogeneous datasets collected within a
+shared spatial and temporal context, such as a large scale field site.
 
-1. The dataset is published to Zenodo, possibly as a new version of an
-   existing dataset.
-2. `safedata_validator` exports a JSON document containing validated
-   metadata for the dataset.
-3. That JSON is uploaded here, either via the web UI or the API, and its
-   metadata is parsed into a searchable database.
+Datasets within such a project are validated and published to Zenodo using the
+`safedata_validator` program. Each published dataset generates a JSON file containing
+both the validated dataset metadata and Zenodo publication metadata. This web
+application then:
 
-The application also maintains a **gazetteer** — a spatial database of
-known sampling locations — and a table of **location aliases**, so that
-location names used inconsistently across datasets can still be resolved
-to a single, known site.
+1. Serves core validation and dataset index resources:
+
+   * A **gazetteer** — a spatial database of known sampling locations in GeoJSON format.
+   * A table of **location aliases** in CSV format, used to resolve inconsistent
+     location names from field data to canonical names in the gazetteer.
+   * An **index** in JSON format of currently published datasets. This is used by
+     downstream data clients as a reference to the dataset versions and files available
+     on Zenodo.
+   * A JSON file containing the MD5 hashes for the files above, which can be used by
+     downstream software to check when resource files are outdated.
+  
+1. Provides an API that can be used to:
+  
+   * Upload validation resources and JSON metadata for published datasets -
+     authentication is required to use these endpoints.
+   * Search the dataset metadata for datasets of interest.
+   * Download dataset metadata records.
 
 ### Tech stack
 
-- **Django** + **GeoDjango**, with **SpatiaLite** as the spatial database
-  backend (no separate database server required)
-- **Django REST Framework** for the API, with token authentication for
-  upload endpoints
-- **Leaflet** (via CDN) for the gazetteer map and taxon browsing pages
-- **uv** for Python dependency and environment management
-- **pytest** / **pytest-django** for testing
+* **Django** + **GeoDjango**, with **SpatiaLite** as the spatial database backend (no
+  separate database server required)
+* **Django REST Framework** for the API, with token authentication for upload endpoints
+* **Leaflet** (via CDN) for the gazetteer map and taxon browsing pages
+* **uv** for Python dependency and environment management
+* **pytest** / **pytest-django** for testing
 
 ### App structure
 
-```
+```{text}
 config/       Project settings, root URLs
 gazetteer/    Gazetteer + alias models, ingestion, map/upload web pages
 datasets/     Dataset metadata models, ingestion, browse/detail/taxa/upload web pages
-api/          All JSON/REST endpoints: search, records, taxa, uploads, downloads
+resources/    Media folder for serving core resource files
+api/          Other JSON/REST endpoints: search, records, taxa, uploads
 ```
 
-The rule of thumb: **`gazetteer`/`datasets`** hold models, ingestion logic,
-and human-facing HTML pages; **`api`** holds everything that returns JSON.
+The rule of thumb: **`gazetteer`/`datasets`** hold models, ingestion logic, and
+human-facing HTML pages; **`resources`** serves key resource files and **`api`** powers
+endpoints for interacting with the server database.
 
 ---
 
@@ -90,8 +106,8 @@ This should print a bound method, not raise an `AttributeError`.
 sudo apt install gdal-bin libgdal-dev libgeos-dev libsqlite3-mod-spatialite spatialite-bin
 ```
 
-System Python on Linux typically already supports extension loading, so
-the rebuild step above usually isn't necessary.
+System Python on Linux typically already supports extension loading, so the rebuild step
+above usually isn't necessary.
 
 ### Project setup
 
@@ -112,7 +128,7 @@ cp .env.example .env
 ```
 
 | Variable | Required | Description |
-|---|---|---|
+| --- | --- | --- |
 | `GAZETTEER_LOCAL_EPSG` | yes | EPSG code for the deployment's local projected CRS (e.g. `32650` for UTM Zone 50N), used for distance and buffer calculations. |
 | `DJANGO_SECRET_KEY` | yes | Django's signing key. There is no default, so the app won't start without it. Generate one with `python -c "import secrets; print(secrets.token_urlsafe(50))"`. Never reuse a key from another environment, and never commit it. |
 | `DJANGO_DEBUG` | no | Set to `1` for local development. Anything else (or unset) means off. Never enable this in production, because it shows stack traces to visitors. |
@@ -184,14 +200,13 @@ There are two ways to get data into the system: the **web UI** (for a
 person, in a browser, logged in) and the **API** (for scripts, tools, or
 the `safedata` R package).
 
-
 ### Web UI
 
 All upload pages require being logged in (`@login_required` — the same
 account as the Django admin).
 
 | Page | URL | Purpose |
-|---|---|---|
+| --- | --- | --- |
 | Home | `/` | Landing page with links to everything below |
 | Gazetteer map | `/gazetteer/map/` | Searchable map of all known sampling locations |
 | Upload gazetteer | `/gazetteer/upload/` | Upload a gazetteer GeoJSON file and/or an aliases CSV |
@@ -215,12 +230,12 @@ Dataset locations are matched against the gazetteer, and the aliases
 file is rejected in full if any row references a dataset that isn't
 loaded yet.
 
-### API
+### API and Download URLs
 
-All API endpoints are under `/api/`, with full reference documentation
-— authentication, uploading, downloading, search, records, and taxon
-identity notes — available at `/api/docs/` once the server is running.
-
+The server provides download URLs for core resource files (`/resources/`) and API
+endpoints (under `/api/`), with full reference documentation — authentication,
+uploading, downloading, search, records, and taxon identity notes — available at
+`/api/docs/` once the server is running.
 
 ## 4. Deployment
 
