@@ -155,6 +155,10 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 LOGIN_URL = "admin:login"
 
+# Define the paths for file resources provided by the application
+MEDIA_ROOT = BASE_DIR / "resources"
+MEDIA_URL = "resources/"
+
 # Only enable once the site is served over HTTPS (see note below).
 if os.environ.get("DJANGO_HTTPS", "0") == "1":
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

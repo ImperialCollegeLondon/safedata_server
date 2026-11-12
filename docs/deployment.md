@@ -195,6 +195,10 @@ server {
         alias /home/ubuntu/safedata_server/staticfiles/;
     }
 
+    location /resources/ {
+        alias /home/ubuntu/safedata_server/resources/;
+    }
+
     location / {
         proxy_pass http://127.0.0.1:8000;
         proxy_set_header Host $host;
