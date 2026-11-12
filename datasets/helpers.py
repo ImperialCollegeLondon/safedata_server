@@ -59,7 +59,7 @@ def _dataset_upload(file: Any) -> Dataset:
 
     with FileSystemStorage().open("hashes.json", "r") as hashfile:
         hashdata = json.load(hashfile)
-        hashdata["index"] = hashlib.md5(index_bytes).hexdigest()
+        hashdata["index.json"] = hashlib.md5(index_bytes).hexdigest()
 
     with FileSystemStorage().open("hashes.json", "w") as hashfile:
         json.dump(hashdata, hashfile)

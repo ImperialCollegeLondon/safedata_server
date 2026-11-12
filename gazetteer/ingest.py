@@ -158,7 +158,7 @@ def update_gazetteer_aliases(file: Any) -> None:
 
         with FileSystemStorage().open("hashes.json", "r") as hashfile:
             hashdata = json.load(hashfile)
-            hashdata["location_aliases"] = hashlib.md5(contents).hexdigest()
+            hashdata["location_aliases.csv"] = hashlib.md5(contents).hexdigest()
 
         with FileSystemStorage().open("hashes.json", "w") as hashfile:
             json.dump(hashdata, hashfile)
@@ -218,7 +218,7 @@ def update_gazetteer(file: Any) -> None:
 
         with FileSystemStorage().open("hashes.json", "r") as hashfile:
             hashdata = json.load(hashfile)
-            hashdata["gazetteer"] = hashlib.md5(contents).hexdigest()
+            hashdata["gazetteer.geojson"] = hashlib.md5(contents).hexdigest()
 
         with FileSystemStorage().open("hashes.json", "w") as hashfile:
             json.dump(hashdata, hashfile)
