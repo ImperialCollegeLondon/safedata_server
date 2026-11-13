@@ -41,7 +41,7 @@ def test_get_gazetteer(client, resources_directory):
 
         # Got a file of the right type and name
         assert response.status_code == 200
-        assert response["Content-Type"] == "application/octet-stream"
+        assert response["Content-Type"] == "application/geo+json"
         assert 'inline; filename="gazetteer.geojson"' in response["Content-Disposition"]
 
         # Data contains expected payload
