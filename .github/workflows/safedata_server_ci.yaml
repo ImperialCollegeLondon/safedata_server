@@ -23,14 +23,15 @@ jobs:
   testing:
     needs: qa
     runs-on: ubuntu-latest
+    container: ghcr.io/osgeo/gdal:ubuntu-small-latest
+    env:
+      GAZETTEER_LOCAL_EPSG: 32650
+      DJANGO_SECRET_KEY: "not_a_real_key_only_used_for_running_tests"
     strategy:
       fail-fast: false
       matrix:
         python-version: [ "3.12", "3.13", "3.14" ]
 
-    env:
-      GAZETTEER_LOCAL_EPSG: 32650
-      DJANGO_SECRET_KEY: "not_a_real_key_only_used_for_running_tests"
     steps:
     - uses: actions/checkout@v7
 
