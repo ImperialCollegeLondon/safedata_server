@@ -11,7 +11,14 @@ import json
 from csv import DictReader
 from hashlib import md5
 
+import pytest
 from django.test import override_settings
+
+
+@pytest.fixture(autouse=True)
+def resource_urlconf(settings):
+    """Use test only url settings to access resources in this module."""
+    settings.ROOT_URLCONF = "api.tests.urls"
 
 
 def test_get_hashes(client, resources_directory):
