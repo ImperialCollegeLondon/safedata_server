@@ -204,7 +204,8 @@ def update_gazetteer(file: Any) -> None:
 
     with transaction.atomic():
         for ft in incoming_data.values():
-            Gazetteer.objects.update_or_create(**ft)
+            location = ft.pop("location")
+            Gazetteer.objects.update_or_create(location=location, defaults=ft)
 
         # Update the resource files
         file.seek(0)

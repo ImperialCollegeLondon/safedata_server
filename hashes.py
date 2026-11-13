@@ -14,14 +14,14 @@ def update_resource_hashes(key, data):
     serve resource files via MEDIA_URL. The function handles the generation of the file
     if it is not already present.
     """
-    if not FileSystemStorage("hashes.json").exists():
+    if not FileSystemStorage().exists("hashes.json"):
         hashes = {
             "gazetteer.geojson": None,
             "location_aliases.csv": None,
             "index.json": None,
         }
     else:
-        with FileSystemStorage("hashes.json").open("r") as hashfile:
+        with FileSystemStorage().open("hashes.json", "r") as hashfile:
             hashes = json.load(hashfile)
 
     hashes[key] = md5(data).hexdigest()
