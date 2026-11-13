@@ -1,7 +1,6 @@
 """Ingestion logic for updating the Gazetteer from an uploaded GeoJSON file."""
 
 import csv
-import hashlib
 import json
 from io import TextIOWrapper
 from typing import Any
@@ -10,6 +9,8 @@ from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.files.storage import FileSystemStorage
 from django.db import transaction
+
+from hashes import update_resource_hashes
 
 from .models import Gazetteer, GazetteerAlias
 
@@ -155,13 +156,7 @@ def update_gazetteer_aliases(file: Any) -> None:
         file.seek(0)
         contents = file.read()
         FileSystemStorage().open("location_aliases.csv", "wb").write(contents)
-
-        with FileSystemStorage().open("hashes.json", "r") as hashfile:
-            hashdata = json.load(hashfile)
-            hashdata["location_aliases.csv"] = hashlib.md5(contents).hexdigest()
-
-        with FileSystemStorage().open("hashes.json", "w") as hashfile:
-            json.dump(hashdata, hashfile)
+        update_resource_hashes(key="location_aliases.csv", data=contents)
 
 
 def update_gazetteer(file: Any) -> None:
@@ -215,13 +210,7 @@ def update_gazetteer(file: Any) -> None:
         file.seek(0)
         contents = file.read()
         FileSystemStorage().open("gazetteer.geojson", "wb").write(contents)
-
-        with FileSystemStorage().open("hashes.json", "r") as hashfile:
-            hashdata = json.load(hashfile)
-            hashdata["gazetteer.geojson"] = hashlib.md5(contents).hexdigest()
-
-        with FileSystemStorage().open("hashes.json", "w") as hashfile:
-            json.dump(hashdata, hashfile)
+        update_resource_hashes(key="gazetteer.geojson", data=contents)
 
 
 # def _process_feature(feature: dict[str, Any]) -> tuple[str, Gazetteer]:
