@@ -20,7 +20,17 @@ def base_dataset_json(**overrides):
             "doi": "10.5281/zenodo.1000001",
             "conceptdoi": "10.5281/zenodo.1000001",
             "metadata": {"publication_date": "2024-01-15"},
-            "files": [],
+            "files": [
+                {
+                    "filename": "base_dataset.xlsx",
+                    "id": "60f65351-50da-49ae-9aca-f307d650b39b",
+                    "filesize": 0,
+                    "checksum": "abcdef12345617890",
+                    "links": {
+                        "download": "https://zenodo.org/api/records/3490675/files/60f65351-50da-49ae-9aca-f307d650b39b"
+                    },
+                }
+            ],
         },
         "title": "Test Dataset",
         "description": "A dataset for testing.",

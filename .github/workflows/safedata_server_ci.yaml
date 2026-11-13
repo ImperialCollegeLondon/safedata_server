@@ -1,0 +1,51 @@
+name: Run QA and testing on PRs
+
+# When does this run - new, reopened or updated PRs and when the workflow is called by
+# another workflow, such as the publishing actions.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_call:
+
+
+jobs:
+
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: pre-commit/action@v3.0.1
+
+
+  testing:
+    needs: qa
+    runs-on: ubuntu-latest
+    env:
+      GAZETTEER_LOCAL_EPSG: 32650
+      DJANGO_SECRET_KEY: "not_a_real_key_only_used_for_running_tests"
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ "3.12", "3.13", "3.14" ]
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - uses: actions/setup-python@v7
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - uses: awalsh128/cache-apt-pkgs-action@latest
+      with:
+        packages: gdal-bin libgdal-dev libgeos-dev libsqlite3-mod-spatialite spatialite-bin 
+        version: 1.0
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v10.3.3
+
+    - name: Run tests
+      run: uv run pytest
+

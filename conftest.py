@@ -1,3 +1,6 @@
+import json
+from hashlib import md5
+
 import pytest
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
@@ -12,6 +15,52 @@ from datasets.models import (
     Taxa,
 )
 from gazetteer.models import Gazetteer, GazetteerAlias
+
+GAZETTEER_GEOJSON = b"""{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {"location": "River Camp A"},
+            "geometry": {"type": "Point", "coordinates": [117.6194, 4.7461]}
+        },
+        {
+            "type": "Feature",
+            "properties": {"location": "River Camp B"},
+            "geometry": {"type": "Point", "coordinates": [117.6231, 4.7502]}
+        }
+    ]
+}"""
+
+LOCATION_ALIASES_CSV = b"""zenodo_record_id,location,alias
+null,River Camp A,Camp A Alt Name
+null,River Camp A,1
+"""
+
+
+# @pytest.fixture(autouse=True)
+@pytest.fixture
+def resources_directory(tmp_path):
+    """This fixture provides a locally configured MEDIA_ROOT directory containing
+    initial data files that should be served from the `resources` URL."""
+
+    hashes = {}
+
+    # Export required files to path and compile hashes
+    for filename, object in (
+        ("gazetteer.geojson", GAZETTEER_GEOJSON),
+        ("location_aliases.csv", LOCATION_ALIASES_CSV),
+    ):
+        with open(tmp_path / filename, "wb") as output:
+            output.write(object)
+
+        hashes[filename] = md5(object).hexdigest()
+
+    # Export required files to path
+    with open(tmp_path / "hashes.json", "w") as hash_file:
+        json.dump(hashes, hash_file)
+
+    return tmp_path
 
 
 @pytest.fixture
