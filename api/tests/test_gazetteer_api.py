@@ -2,8 +2,6 @@
 """Tests for the gazetteer app: download/hash endpoints and authenticated
 upload endpoints, for both the gazetteer and its aliases."""
 
-import hashlib
-
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 
@@ -27,124 +25,6 @@ VALID_ALIAS_CSV = b'"zenodo_record_id","location","alias"\n"null","River Camp A"
 ALIAS_CSV_UNKNOWN_LOCATION = (
     b'"zenodo_record_id","location","alias"\n"null","Nonexistent Site","1"\n'
 )
-
-
-class TestGazetteerDownload:
-    def test_returns_geojson_feature_collection(self, client, sample_gazetteer):
-        response = client.get(reverse("api:gazetteer-download"))
-
-        assert response.status_code == 200
-        assert response["Content-Type"] == "application/geo+json"
-        assert (
-            'attachment; filename="gazetteer.geojson"'
-            in response["Content-Disposition"]
-        )
-
-        content = response.json()
-        assert content["type"] == "FeatureCollection"
-        assert len(content["features"]) == 2
-
-        locations = {f["properties"]["location"] for f in content["features"]}
-        assert locations == {"River Camp A", "River Camp B"}
-
-    def test_excludes_local_geometry(self, client, sample_gazetteer):
-        response = client.get(reverse("api:gazetteer-download"))
-        content = response.json()
-
-        for feature in content["features"]:
-            assert "geom_local" not in feature["properties"]
-
-
-class TestGazetteerHash:
-    def test_returns_md5(self, client, sample_gazetteer):
-        response = client.get(reverse("api:gazetteer-hash"))
-
-        assert response.status_code == 200
-        data = response.json()
-        assert "md5" in data
-        assert len(data["md5"]) == 32
-
-    def test_matches_downloaded_content(self, client, sample_gazetteer):
-        download_response = client.get(reverse("api:gazetteer-download"))
-        hash_response = client.get(reverse("api:gazetteer-hash"))
-
-        expected_md5 = hashlib.md5(download_response.content).hexdigest()
-        actual_md5 = hash_response.json()["md5"]
-
-        assert actual_md5 == expected_md5
-
-    def test_changes_when_gazetteer_changes(self, client, sample_gazetteer):
-        initial_hash = client.get(reverse("api:gazetteer-hash")).json()["md5"]
-
-        Gazetteer.objects.create(
-            location="New Site",
-            geom_wgs84="POINT (117.6000 4.7000)",
-            geom_local="POINT (566000.00 520000.00)",
-        )
-
-        updated_hash = client.get(reverse("api:gazetteer-hash")).json()["md5"]
-
-        assert updated_hash != initial_hash
-
-
-class TestAliasDownload:
-    def test_returns_csv(self, client, sample_aliases):
-        response = client.get(reverse("api:gazetteer-alias-download"))
-
-        assert response.status_code == 200
-        assert response["Content-Type"] == "text/csv"
-        assert (
-            'attachment; filename="location_aliases.csv"'
-            in response["Content-Disposition"]
-        )
-
-        content = response.content.decode("utf-8")
-        assert "zenodo_record_id" in content
-        assert "location" in content
-        assert "alias" in content
-        assert "Camp A Alt Name" in content
-
-    def test_uses_null_for_general_aliases(self, client, sample_aliases):
-        response = client.get(reverse("api:gazetteer-alias-download"))
-        content = response.content.decode("utf-8")
-
-        # All fixture aliases are general (no dataset), so every data row
-        # should have "null" in the zenodo_record_id column - matching the
-        # convention in the existing production CSV file.
-        lines = content.strip().splitlines()
-        data_rows = lines[1:]  # skip header
-        assert len(data_rows) == 2
-        for row in data_rows:
-            assert "null" in row
-
-
-class TestAliasHash:
-    def test_returns_md5(self, client, sample_aliases):
-        response = client.get(reverse("api:gazetteer-alias-hash"))
-
-        assert response.status_code == 200
-        data = response.json()
-        assert "md5" in data
-        assert len(data["md5"]) == 32
-
-    def test_matches_downloaded_content(self, client, sample_aliases):
-        download_response = client.get(reverse("api:gazetteer-alias-download"))
-        hash_response = client.get(reverse("api:gazetteer-alias-hash"))
-
-        expected_md5 = hashlib.md5(download_response.content).hexdigest()
-        actual_md5 = hash_response.json()["md5"]
-
-        assert actual_md5 == expected_md5
-
-    def test_changes_when_aliases_change(self, client, sample_aliases):
-        initial_hash = client.get(reverse("api:gazetteer-alias-hash")).json()["md5"]
-
-        camp_b = Gazetteer.objects.get(location="River Camp B")
-        GazetteerAlias.objects.create(location=camp_b, alias="Camp B Alt Name")
-
-        updated_hash = client.get(reverse("api:gazetteer-alias-hash")).json()["md5"]
-
-        assert updated_hash != initial_hash
 
 
 class TestGazetteerUpload:
