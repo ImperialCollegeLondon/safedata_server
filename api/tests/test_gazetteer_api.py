@@ -176,19 +176,32 @@ class TestAliasUpload:
         assert response.status_code == 401
         assert GazetteerAlias.objects.count() == 0
 
-    def test_succeeds_with_valid_token(self, api_client_with_token, sample_gazetteer):
+    def test_succeeds_with_valid_token(
+        self, tmp_path, api_client_with_token, sample_gazetteer
+    ):
         upload_file = SimpleUploadedFile(
             "aliases.csv", VALID_ALIAS_CSV, content_type="text/csv"
         )
-        response = api_client_with_token.post(
-            reverse("api:gazetteer-alias-upload"),
-            {"file": upload_file},
-            format="multipart",
-        )
 
-        assert response.status_code == 200
-        assert response.json() == {"status": "ok"}
-        assert GazetteerAlias.objects.filter(alias="1").exists()
+        with override_settings(MEDIA_ROOT=tmp_path, DEBUG=True):
+            response = api_client_with_token.post(
+                reverse("api:gazetteer-alias-upload"),
+                {"file": upload_file},
+                format="multipart",
+            )
+
+            assert response.status_code == 200
+            assert response.json() == {"status": "ok"}
+            assert GazetteerAlias.objects.filter(alias="1").exists()
+
+            # Check resource files has been created and correctly hashed
+            assert (tmp_path / "location_aliases.csv").exists()
+            assert (tmp_path / "hashes.json").exists()
+            with open(tmp_path / "hashes.json") as hashfile:
+                hashes = json.load(hashfile)
+                assert (
+                    md5(VALID_ALIAS_CSV).hexdigest() == hashes["location_aliases.csv"]
+                )
 
     def test_rejects_unknown_gazetteer_location(
         self, api_client_with_token, sample_gazetteer
