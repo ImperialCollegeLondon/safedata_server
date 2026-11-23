@@ -44,7 +44,9 @@ application then:
 > its accompanying datasets. The web application stores this metadata in a database to
 > power API requests but the application cannot cannot (and _should not_) be used to
 > edit this published metadata. When new datasets or resource updates are ingested, both
-> the database and resource files described above are updated.
+> the database and resource files described above are updated, but there is no mechanism
+> to update the resource files by editing the application database tables. This is
+> intentional!
 
 ### Tech stack
 
