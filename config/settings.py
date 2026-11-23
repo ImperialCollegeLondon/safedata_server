@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import mimetypes
 import os
 import subprocess
 import sys
@@ -164,3 +165,8 @@ if os.environ.get("DJANGO_HTTPS", "0") == "1":
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+
+
+# MIMETYPES
+if DEBUG:
+    mimetypes.add_type("application/geo+json", ".geojson", True)
