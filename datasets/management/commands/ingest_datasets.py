@@ -9,9 +9,12 @@ Usage:
 import json
 from pathlib import Path
 
+from django.core.files.storage import FileSystemStorage
 from django.core.management.base import BaseCommand, CommandError
 
+from datasets.helpers import _current_index_json
 from datasets.ingest import DatasetIngestError, ingest_dataset
+from hashes import update_resource_hashes
 
 
 class Command(BaseCommand):
@@ -61,3 +64,10 @@ class Command(BaseCommand):
         self.stdout.write(f"\nFailed: {len(failed)}")
         for path, error in failed:
             self.stdout.write(self.style.ERROR(f"  FAIL {path.name}: {error}"))
+
+        # Generate index after ingestion
+        index_bytes: bytes = _current_index_json().encode()
+
+        # Update the resource files
+        FileSystemStorage().open("index.json", "wb").write(index_bytes)
+        update_resource_hashes(key="index.json", data=index_bytes)

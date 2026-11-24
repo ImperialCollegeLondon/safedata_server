@@ -35,6 +35,19 @@ application then:
    * Search the dataset metadata for datasets of interest.
    * Download dataset metadata records.
 
+> [!CAUTION]
+> If you are developing `safedata_server` then you should be aware that the data
+> handling in this application differs from many `django` applications.
+>
+> The `safedata_server` web application serves metadata validated using the
+> `safedata_validator` application and then published and assigned a DOI along with
+> its accompanying datasets. The web application stores this metadata in a database to
+> power API requests but the application cannot cannot (and _should not_) be used to
+> edit this published metadata. When new datasets or resource updates are ingested, both
+> the database and resource files described above are updated, but there is no mechanism
+> to update the resource files by editing the application database tables. This is
+> intentional!
+
 ### Tech stack
 
 * **Django** + **GeoDjango**, with **SpatiaLite** as the spatial database backend (no
