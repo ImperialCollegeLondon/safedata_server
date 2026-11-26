@@ -1,8 +1,14 @@
 """Tests for datasets.ingest: creating, updating, and validating datasets
 from safedata_validator JSON exports."""
 
+import json
+from hashlib import md5
+from io import StringIO
+
 import pytest
 from django.contrib.gis.geos import Point
+from django.core.management import call_command
+from django.test import override_settings
 
 from gazetteer.models import Gazetteer, GazetteerAlias
 
@@ -20,7 +26,17 @@ def base_dataset_json(**overrides):
             "doi": "10.5281/zenodo.1000001",
             "conceptdoi": "10.5281/zenodo.1000001",
             "metadata": {"publication_date": "2024-01-15"},
-            "files": [],
+            "files": [
+                {
+                    "filename": "base_dataset.xlsx",
+                    "id": "60f65351-50da-49ae-9aca-f307d650b39b",
+                    "filesize": 0,
+                    "checksum": "abcdef12345617890",
+                    "links": {
+                        "download": "https://zenodo.org/api/records/3490675/files/60f65351-50da-49ae-9aca-f307d650b39b"
+                    },
+                }
+            ],
         },
         "title": "Test Dataset",
         "description": "A dataset for testing.",
@@ -348,3 +364,68 @@ class TestIngestLocations:
 
         with pytest.raises(DatasetIngestError):
             ingest_dataset(data)
+
+
+class TestBulkIngestCommand:
+    """Test the ingest_datasets command.
+
+    This is invoked as `python manage.py ingest_datasets` to bulk ingest a directory of
+    JSON inputs. The test class provides a method to runs the command and the test
+    checks the outcome:
+
+    * Command line stdout as expected
+    * DB populated with correct IDs
+    * Index and hash resource files exported
+    """
+
+    def call_command(self, *args, **kwargs):
+        out = StringIO()
+        call_command(
+            "ingest_datasets",
+            *args,
+            stdout=out,
+            stderr=StringIO(),
+            **kwargs,
+        )
+        return out.getvalue()
+
+    def test_bulk_ingest(self, tmp_path, db):
+
+        # Generate input directory with 3 data files
+        data = base_dataset_json()
+        ids = range(1000001, 1000004)
+        for dataset_id in ids:
+            data["zenodo"]["id"] = dataset_id
+            with open(tmp_path / f"dataset_{dataset_id}.json", "w") as outfile:
+                json.dump(data, outfile)
+
+        # Run the command using the temporary path as the MEDIA_ROOT, also force DEBUG
+        # mode to enable developer-mode handling of media files.
+        with override_settings(MEDIA_ROOT=tmp_path, DEBUG=True):
+            std_out = self.call_command(tmp_path)
+
+        # Check output
+        n_ids = len(ids)
+        assert f"Succeeded: {n_ids}" in std_out
+
+        # Check DB
+        assert Dataset.objects.count() == n_ids
+        assert {d.zenodo_record_id for d in Dataset.objects.all()} == set(ids)
+
+        # Check resource files exist and contain expected content
+        assert (tmp_path / "index.json").exists()
+        assert (tmp_path / "hashes.json").exists()
+
+        with open(tmp_path / "index.json") as index_file:
+            index = json.load(index_file)
+            assert len(index) == n_ids
+            assert {r["zenodo_record_id"] for r in index} == set(ids)
+
+        with open(tmp_path / "index.json", "rb") as index_file:
+            index_hash = md5(index_file.read()).hexdigest()
+
+        with open(tmp_path / "hashes.json") as hash_file:
+            hashes = json.load(hash_file)
+
+            assert "index.json" in hashes
+            assert hashes["index.json"] == index_hash

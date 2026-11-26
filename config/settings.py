@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import mimetypes
 import os
 import subprocess
 import sys
@@ -155,8 +156,17 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 LOGIN_URL = "admin:login"
 
+# Define the paths for file resources provided by the application
+MEDIA_ROOT = BASE_DIR / "resources"
+MEDIA_URL = "resources/"
+
 # Only enable once the site is served over HTTPS (see note below).
 if os.environ.get("DJANGO_HTTPS", "0") == "1":
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+
+
+# MIMETYPES
+if DEBUG:
+    mimetypes.add_type("application/geo+json", ".geojson", True)

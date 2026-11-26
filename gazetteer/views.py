@@ -1,6 +1,5 @@
 """Gazetteer views."""
 
-import io
 import json
 
 from django.contrib import messages
@@ -10,8 +9,8 @@ from django.shortcuts import redirect, render
 from .ingest import (
     GazetteerAliasIngestError,
     GazetteerIngestError,
-    ingest_gazetteer_aliases_csv,
-    ingest_multiple_gazetteer_entries,
+    update_gazetteer,
+    update_gazetteer_aliases,
 )
 
 
@@ -45,8 +44,7 @@ def _handle_gazetteer_upload(request):
         return
 
     try:
-        data = json.load(uploaded_file)
-        ingest_multiple_gazetteer_entries(data)
+        update_gazetteer(uploaded_file)
     except (json.JSONDecodeError, GazetteerIngestError) as exc:
         messages.error(request, f"Gazetteer upload failed: {exc}")
         return
@@ -56,15 +54,15 @@ def _handle_gazetteer_upload(request):
 
 def _handle_aliases_upload(request):
     uploaded_file = request.FILES.get("file")
+
+    # Look for missing file
     if uploaded_file is None:
         messages.error(request, "No aliases file was provided.")
         return
 
-    text_file = io.TextIOWrapper(uploaded_file.file, encoding="utf-8")
-
     try:
-        ingest_gazetteer_aliases_csv(text_file)
-    except GazetteerAliasIngestError as exc:
+        update_gazetteer_aliases(uploaded_file.file)
+    except (UnicodeDecodeError, GazetteerAliasIngestError) as exc:
         messages.error(request, f"Aliases upload failed: {exc}")
         return
 

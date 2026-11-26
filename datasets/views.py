@@ -8,7 +8,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.html import format_html
 
-from .ingest import DatasetIngestError, ingest_dataset
+from .helpers import _dataset_upload
+from .ingest import DatasetIngestError
 from .models import Dataset
 
 
@@ -24,8 +25,7 @@ def dataset_upload_page(request):
             return redirect("datasets:upload-page")
 
         try:
-            data = json.load(uploaded_file)
-            dataset = ingest_dataset(data)
+            dataset = _dataset_upload(uploaded_file)
         except (json.JSONDecodeError, DatasetIngestError) as exc:
             messages.error(request, f"Dataset upload failed: {exc}")
             return redirect("datasets:upload-page")
